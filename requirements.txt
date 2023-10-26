@@ -1,0 +1,9 @@
+black
+black[jupyter]
+pylint
+pandas
+numpy
+matplotlib
+seaborn
+openpyxl
+scikit-learn
