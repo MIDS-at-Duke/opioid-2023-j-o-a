@@ -160,3 +160,6 @@ cython_debug/
 #.idea/
 # ignore mac 
 .DS_Store
+
+# big data
+opioid*.csv
