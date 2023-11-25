@@ -160,5 +160,9 @@ cython_debug/
 #.idea/
 # ignore mac 
 .DS_Store
+
+# big data
+opioid*.csv
+
 # ignore .tsv file 
 00_data/arcos_all_washpost.tsv
