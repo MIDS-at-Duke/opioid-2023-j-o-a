@@ -129,4 +129,44 @@ popfips = pd.merge(
 # Remove rows with null values in the 'fips' column, which are 50 values corresponding to total population for each state
 popfips = popfips[popfips["_merge"] == "both"]
 
-popfips.to_csv("../00_data/PopFips.csv", index=False)
+# popfips.to_csv("../00_data/PopFips.csv", index=False)
+
+# Define the id_vars for the melt function
+id_vars = ["STATE", "STNAME", "CTYNAME", "fips", "name", "state"]
+
+# Define the value_vars for the melt function
+value_vars = [
+    "POPESTIMATE2002",
+    "POPESTIMATE2003",
+    "POPESTIMATE2004",
+    "POPESTIMATE2005",
+    "POPESTIMATE2006",
+    "POPESTIMATE2007",
+    "POPESTIMATE2008",
+    "POPESTIMATE2009",
+    "POPESTIMATE2010",
+    "POPESTIMATE2011",
+    "POPESTIMATE2012",
+    "POPESTIMATE2013",
+    "POPESTIMATE2014",
+    "POPESTIMATE2015",
+    "POPESTIMATE2016",
+    "POPESTIMATE2017",
+    "POPESTIMATE2018",
+]
+
+# Use the melt function to pivot the DataFrame
+melted_popfips = popfips.melt(
+    id_vars=id_vars, value_vars=value_vars, var_name="Year", value_name="Population"
+)
+
+# Extract the year from the Year column
+melted_popfips["Year"] = melted_popfips["Year"].str.extract("(\d+)").astype(int)
+
+# Drop the _merge column
+melted_popfips = melted_popfips.drop(columns=["name"])
+
+# Convert the 'Year' column to a datetime object
+melted_popfips["Year_datetime"] = pd.to_datetime(melted_popfips["Year"], format="%Y")
+
+melted_popfips.to_csv("../00_data/PopFips.csv", index=False)
