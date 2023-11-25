@@ -160,3 +160,5 @@ cython_debug/
 #.idea/
 # ignore mac 
 .DS_Store
+# ignore .tsv file 
+00_data/arcos_all_washpost.tsv
