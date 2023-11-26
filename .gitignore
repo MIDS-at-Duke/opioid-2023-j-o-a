@@ -162,3 +162,4 @@ cython_debug/
 .DS_Store
 # ignore .tsv file 
 00_data/arcos_all_washpost.tsv
+00_data/arcos_all_washpost.zip
