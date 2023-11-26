@@ -4,6 +4,7 @@
 """
 
 import pandas as pd
+import dask.dataframe as dd
 
 # Loading Florida parquet file from 00_data/states
 florida_data = pd.read_parquet("../00_data/states/FL.parquet")
@@ -13,8 +14,9 @@ florida_data = florida_data[florida_data["County"].notnull()]
 florida_data = florida_data[florida_data["YEAR"].between(2002, 2018)]
 unique_counties_per_year = florida_data.groupby("YEAR")["County"].nunique()
 
-# Loading raw mortality data from 00_data
-mortality_data = pd.read_csv("../00_data/mortality_final.csv")
+def clean_data(state_parquet, state_mortality, state_population):
+    state_data = dd.read_parquet(f"../00_data/states/{state_parquet}.parquet")
+    state_data = state_data.rename(columns={"BUYER_COUNTY": "County"})
 
 # Loading population data from 00_data
 population_data = pd.read_csv("../00_data/PopFips.csv")
@@ -49,6 +51,8 @@ observations_per_county_year = florida_mortality_data.groupby(["County", "YEAR"]
 pop_opioid_fl = florida_data.merge(
     population_data, how="left", on=["County", "YEAR"], indicator=True
 )
+fl_finaldata = dd.merge(pop_mortality_data, FL_pop, how="left", on=["County", "Year"])
+fl_finaldata = fl_finaldata.compute()  # Convert back to pandas dataframe
 
 assert (pop_opioid_fl["_merge"] == "both").all(), "Not all merges were successful"
 
@@ -83,12 +87,12 @@ assert not (
 pop_opioid_mort_fl.to_parquet("../00_data/FL_Opioid_Mortality_Pop.parquet")
 
 """
-Filtering based on country population because we don't want counties with v small populations (will ruin comparison)
-For missing data in mortality: calculate rate and fill in [only necessry if valid after above]
-Opioid calculation: MME x calc_base_weight
+    Filtering based on country population because we don't want counties with v small populations (will ruin comparison)
+    For missing data in mortality: calculate rate and fill in [only necessry if valid after above]
+    Opioid calculation: MME x calc_base_weight
 
-Limitations:
-only used big counties
+    Limitations:
+    only used big counties
 """
 # Exploring the intersections and differences of the dataframes for merges
 
