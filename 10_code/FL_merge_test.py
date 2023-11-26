@@ -4,42 +4,47 @@
 """
 
 import pandas as pd
+import dask.dataframe as dd
 
-# Loading Florida parquet file from 00_data/states
-florida_data = pd.read_parquet("../00_data/states/FL.parquet")
-florida_data.rename(columns={"BUYER_COUNTY": "County"}, inplace=True)
-florida_data["County"] = florida_data["County"].str.lower()
 
-# Loading raw mortality data from 00_data
-mortality_data = pd.read_csv("../00_data/mortality_final.csv")
+def clean_data(state_parquet, state_mortality, state_population):
+    state_data = dd.read_parquet(f"../00_data/states/{state_parquet}.parquet")
+    state_data = state_data.rename(columns={"BUYER_COUNTY": "County"})
 
-# Loading population data from 00_data
-population_data = pd.read_csv("../00_data/PopFips.csv")
-population_data.rename(columns={"CTYNAME": "County"}, inplace=True)
-population_data["County"] = population_data["County"].str.lower()
-population_data["County"] = population_data["County"].str.replace(" county", "")
+    mortality_data = dd.read_csv(f"../00_data/{state_mortality}.csv")
+    state_mortality_data = mortality_data[
+        mortality_data["State"] == state_parquet
+    ].copy()
+    state_mortality_data["County"] = (
+        state_mortality_data["County"].str.upper().str.replace(" COUNTY", "")
+    )
 
-# Subset population data to just FL
-florida_pop_data = population_data[population_data["STATE"] == "FL"]
-florida_mortality_data = mortality_data[mortality_data["State"] == "FL"]
-florida_mortality_data["County"] = florida_mortality_data["County"].str.lower()
-florida_mortality_data["County"] = florida_mortality_data["County"].str.replace(
-    " county", ""
+    population_data = dd.read_csv(f"../00_data/{state_population}.csv")
+    population_data = population_data.rename(columns={"CTYNAME": "County"})
+    state_pop_data = population_data[population_data["STATE"] == state_parquet].copy()
+    state_pop_data["County"] = (
+        state_pop_data["County"].str.upper().str.replace(" COUNTY", "")
+    )
+
+    return state_data, state_mortality_data, state_pop_data
+
+
+# Clean the data using dask dataframes
+FL_consume, FL_mortality, FL_pop = clean_data("FL", "mortality_final", "PopFips")
+
+# Merge using dask dataframes
+pop_mortality_data = dd.merge(
+    FL_consume, FL_mortality, how="left", on=["County"], indicator=True
 )
+fl_finaldata = dd.merge(pop_mortality_data, FL_pop, how="left", on=["County", "Year"])
+fl_finaldata = fl_finaldata.compute()  # Convert back to pandas dataframe
 
-pop_mortality_data = florida_data.merge(
-    florida_mortality_data, how="left", on=["County"], indicator=True
-)
-
-fl_finaldata = pop_mortality_data.merge(
-    florida_pop_data, how="left", on=["County", "Year"]
-)
 
 """
-Filtering based on country population because we don't want counties with v small populations (will ruin comparison)
-For missing data in mortality: calculate rate and fill in [only necessry if valid after above]
-Opioid calculation: MME x calc_base_weight
+    Filtering based on country population because we don't want counties with v small populations (will ruin comparison)
+    For missing data in mortality: calculate rate and fill in [only necessry if valid after above]
+    Opioid calculation: MME x calc_base_weight
 
-Limitations:
-only used big counties
+    Limitations:
+    only used big counties
 """
