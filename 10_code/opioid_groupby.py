@@ -184,3 +184,66 @@ assert (opioid_pop["_merge"] == "both").all()
 
 # write the merged file to parquet
 opioid_pop.to_parquet("../00_data/opioid_pop_clean.parquet")
+
+
+#####################################################################
+#       We repeat the same process for months data for Texas        #
+#####################################################################
+
+
+aggregated_data_months = aggregated_data_months.rename(
+    columns={
+        "BUYER_STATE": "State",
+        "BUYER_COUNTY": "County",
+        "YEAR": "Year",
+        "MONTH": "Month",
+        "MME": "MME",
+        "CALC_BASE_WT_IN_GM": "CALC_BASE_WT_IN_GM",
+    }
+)
+
+aggregated_data_months = aggregated_data_months[
+    (aggregated_data_months["Year"] >= 2002) & (aggregated_data_months["Year"] <= 2018)
+]
+
+# Rename 'Dona Ana' to 'Doña ana'
+aggregated_data_months.loc[
+    aggregated_data_months["County"] == "DONA ANA", "County"
+] = "Do̱a Ana"
+
+# Rename 'Radford' to 'Radford City'
+aggregated_data_months.loc[
+    aggregated_data_months["County"] == "RADFORD", "County"
+] = "Radford City"
+
+
+# Remove 'District of Columbia'
+aggregated_data_months = aggregated_data_months[
+    aggregated_data_months["County"] != "DISTRICT OF COLUMBIA"
+]
+
+
+aggregated_data_months = aggregated_data_months[
+    ~(
+        (aggregated_data_months["County"] == "LA SALLE")
+        & (aggregated_data_months["State"] == "LA")
+    )
+]
+
+agg_months_clean = clean_county(aggregated_data_months)
+
+# population_counties = set(population_clean["County"])
+# aggregated_data_years_counties = set(agg_years_clean["County"])
+
+# only_in_population = population_counties - aggregated_data_years_counties
+# only_in_aggregated_data_years = aggregated_data_years_counties - population_counties
+
+
+opioid_pop_months = agg_months_clean.merge(
+    population_clean, how="left", on=["State", "County", "Year"], indicator=True
+)
+
+assert (opioid_pop_months["_merge"] == "both").all()
+
+# write the merged file to parquet
+opioid_pop_months.to_parquet("../00_data/opioid_pop_months_clean.parquet")
