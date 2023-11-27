@@ -5,6 +5,7 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 import statsmodels.api as sm
+import operator
 
 
 TREATMENT_STATES = ["TX", "FL", "WA"]
@@ -69,13 +70,15 @@ PRE_DEFINED_STATES = [
     "WV",
     "WI",
     "WY",
-    "DC",
+    #  "DC",
 ]
 
 # Specify the path to the folder containing Parquet files
 folder_path = "../00_data/states/"
 # Specify the path to the population csv
 population_path = "../00_data/PopFips.csv"
+# Specify the path to the opiod_pop csv
+opiod_pop_path = "../00_data/opioid_pop_clean.parquet"
 
 
 def find_control_states_prep(pre_defined_states):
@@ -214,11 +217,16 @@ def example_pre_post_fl():
     # this should be how you get the control states
     print("The slope is: ")
     print(results.params["Year"])
+    print(results.params)
     # # Print mean predictions
     # print(model_predict.summary_frame()["mean"])
     # print(model_predict.conf_int(alpha=0.05))
     mean_predictions = model_predict.summary_frame()["mean"]
     ci = model_predict.conf_int(alpha=0.05)
+    ci_l = model_predict.summary_frame()["mean_ci_lower"]
+    ci_u = model_predict.summary_frame()["mean_ci_upper"]
+    print("here......")
+    print(model_predict.summary_frame())
     print(ci)
     plt.plot(
         florida_pre["YEAR"],
@@ -228,8 +236,8 @@ def example_pre_post_fl():
     )
     plt.fill_between(
         florida_pre["YEAR"],
-        ci[:, 0],
-        ci[:, 1],
+        ci_l,
+        ci_u,
         color="blue",
         alpha=0.2,
     )
@@ -243,7 +251,7 @@ def example_pre_post_fl():
     model_predict_post = results_post.get_prediction(X_post)
     mean_predictions_post = model_predict_post.summary_frame()["mean"]
     ci = model_predict_post.conf_int(alpha=0.05)
-
+    # ax.fill_between(x, y_est - y_err, y_est + y_err, alpha=0.2)
     # Plot the mean predictions for florida_post
     plt.plot(
         florida_post["YEAR"],
@@ -459,8 +467,466 @@ def find_control_states(state, pre_defined_states):
     return potential_control
 
 
+def example_pre_post_fl_cleaned():
+    table = pq.read_table(opiod_pop_path)
+
+    df = table.to_pandas()
+    print(df[df["State"] == "FL"].head())
+    df_fl = df[df["State"] == "FL"]
+    df_fl["Opioid per capita"] = df_fl["MME"] / df_fl["Population"]
+    print(df_fl.head())
+
+    # grab pre and post intervention
+    florida_pre = df_fl[(df_fl["Year"] < 2010) & (df_fl["Year"] > 2006)]
+    florida_post = df_fl[(df_fl["Year"] >= 2010) & (df_fl["Year"] < 2013)]
+
+    # Create a design matrix
+    X = sm.add_constant(florida_pre["Year"])
+
+    # # Fit OLS model
+    model = sm.OLS(florida_pre["Opioid per capita"], X)
+    results = model.fit()
+    # # Get predictions
+    model_predict = results.get_prediction(X)
+    # this should be how you get the control states
+    print("The slope is: ")
+    print(results.params["Year"])
+    print(results.params)
+    # # Print mean predictions
+    # print(model_predict.summary_frame()["mean"])
+    # print(model_predict.conf_int(alpha=0.05))
+    mean_predictions = model_predict.summary_frame()["mean"]
+    pred_post_ci = model_predict.conf_int()
+
+    ci = model_predict.conf_int(alpha=0.05)
+    ci_l = model_predict.summary_frame()["mean_ci_lower"]
+    ci_u = model_predict.summary_frame()["mean_ci_upper"]
+    print("here......")
+    print(model_predict.summary_frame())
+    print(ci)
+    plt.plot(
+        florida_pre["Year"],
+        mean_predictions,
+        color="blue",
+        label="Mean Predictions (Pre-2010)",
+    )
+    plt.fill_between(
+        florida_pre["Year"],
+        pred_post_ci[:, 0],
+        pred_post_ci[:, 1],
+        color="blue",
+        alpha=0.2,
+    )
+
+    # Fit OLS model for florida_post
+    X_post = sm.add_constant(florida_post["Year"])
+    model_post = sm.OLS(florida_post["Opioid per capita"], X_post)
+    results_post = model_post.fit()
+
+    # Get predictions for florida_post
+    model_predict_post = results_post.get_prediction(X_post)
+    mean_predictions_post = model_predict_post.summary_frame()["mean"]
+    ci = model_predict_post.conf_int(alpha=0.05)
+    # ax.fill_between(x, y_est - y_err, y_est + y_err, alpha=0.2)
+    # Plot the mean predictions for florida_post
+    plt.plot(
+        florida_post["Year"],
+        mean_predictions_post,
+        color="blue",
+    )
+    plt.fill_between(
+        florida_post["Year"],
+        ci[:, 0],
+        ci[:, 1],
+        color="blue",
+        alpha=0.2,
+    )
+    plt.axvline(x=2010, color="red", linestyle="--", label="Year 2010")
+    # "WV", "KY", "ME"
+    df = table.to_pandas()
+
+    # Filter data for the specified states
+    # states_to_process = ["WV", "KY", "ME"]
+    states_to_process = ["DE", "NV", "TN"]
+    df_selected_states = df[df["State"].isin(states_to_process)]
+
+    # Calculate Opioid per capita
+    df_selected_states["Opioid per capita"] = (
+        df_selected_states["MME"] / df_selected_states["Population"]
+    )
+
+    # Print the processed data for the selected states
+    print(df_selected_states.head())
+
+    # Grab pre and post intervention for the selected states
+    selected_states_pre = df_selected_states[
+        (df_selected_states["Year"] < 2010) & (df_selected_states["Year"] > 2006)
+    ]
+    selected_states_post = df_selected_states[
+        (df_selected_states["Year"] >= 2010) & (df_selected_states["Year"] < 2013)
+    ]
+
+    # Create a design matrix
+    X = sm.add_constant(selected_states_pre["Year"])
+
+    # # Fit OLS model
+    model = sm.OLS(selected_states_pre["Opioid per capita"], X)
+    results = model.fit()
+    # # Get predictions
+    model_predict = results.get_prediction(X)
+    print("The slope is for the three states is: ")
+    print(results.params["Year"])
+    # # Print mean predictions
+    # print(model_predict.summary_frame()["mean"])
+    # print(model_predict.conf_int(alpha=0.05))
+    mean_predictions = model_predict.summary_frame()["mean"]
+    ci = model_predict.conf_int(alpha=0.05)
+    ci_l = model_predict.summary_frame()["mean_ci_lower"]
+    ci_u = model_predict.summary_frame()["mean_ci_upper"]
+    print("here......")
+    print(model_predict.summary_frame())
+    print(ci)
+    plt.plot(
+        selected_states_pre["Year"],
+        mean_predictions,
+        color="green",
+        label="Mean Predictions (Pre-2010)",
+    )
+    plt.fill_between(
+        selected_states_pre["Year"],
+        ci_l,
+        ci_u,
+        color="green",
+        alpha=0.2,
+    )
+    X_post = sm.add_constant(selected_states_post["Year"])
+    model_post = sm.OLS(selected_states_post["Opioid per capita"], X_post)
+    results_post = model_post.fit()
+
+    # Get predictions for florida_post
+    model_predict_post = results_post.get_prediction(X_post)
+    mean_predictions_post = model_predict_post.summary_frame()["mean"]
+    ci = model_predict_post.conf_int(alpha=0.05)
+    # ax.fill_between(x, y_est - y_err, y_est + y_err, alpha=0.2)
+    # Plot the mean predictions for florida_post
+    plt.plot(
+        selected_states_post["Year"],
+        mean_predictions_post,
+        color="green",
+    )
+    plt.fill_between(
+        selected_states_post["Year"],
+        ci[:, 0],
+        ci[:, 1],
+        color="green",
+        alpha=0.2,
+    )
+
+    # Print pre and post intervention data for the selected states
+
+    plt.xlabel("Year")
+    plt.ylabel("Opioid per capita")
+    plt.savefig("../30_results/pre_post_test.png")
+
+
+def find_control_states_cleaned_fl(state, pre_defined_states):
+    table = pq.read_table(opiod_pop_path)
+
+    df = table.to_pandas()
+    # print(df[df["State"] == "FL"].head())
+    df_fl = df[df["State"] == "FL"]
+    df_fl["Opioid per capita"] = df_fl["MME"] / df_fl["Population"]
+    # print(df_fl.head())
+
+    # grab pre and post intervention
+    florida_pre = df_fl[(df_fl["Year"] < 2010) & (df_fl["Year"] > 2006)]
+    X = sm.add_constant(florida_pre["Year"])
+
+    # # Fit OLS model
+    model = sm.OLS(florida_pre["Opioid per capita"], X)
+    results = model.fit()
+    slope = results.params["Year"]
+    potential_control = {}
+    mean_opiod = {}
+    for i in pre_defined_states:
+        print(i)
+        table = pq.read_table(opiod_pop_path)
+        df = table.to_pandas()
+        df_state = df[df["State"] == i]
+        df_state["Opioid per capita"] = df_state["MME"] / df_state["Population"]
+        state_pre = df_state[(df_state["Year"] < 2010) & (df_state["Year"] > 2006)]
+        X = sm.add_constant(state_pre["Year"])
+
+        # # Fit OLS model
+        model = sm.OLS(state_pre["Opioid per capita"], X)
+        results = model.fit()
+        model_predict = results.get_prediction(X)
+        print(model_predict.summary_frame())
+        state_slope = results.params["Year"]
+        print(slope, state_slope)
+        potential_control[i] = [state_slope]
+        mean_opiod[i] = np.mean(state_pre["Opioid per capita"])
+    # print(mean_opiod)
+    florida_mean = mean_opiod["FL"]
+
+    differences = {
+        state: abs(mean - florida_mean) for state, mean in mean_opiod.items()
+    }
+    # print(differences)
+    top_three_states = sorted(differences, key=differences.get)[:4]
+    # print(top_three_states)
+
+    return dict(sorted(potential_control.items(), key=lambda item: item[1]))
+
+
+def find_control_states_cleaned_wa(state, pre_defined_states):
+    table = pq.read_table(opiod_pop_path)
+
+    df = table.to_pandas()
+    # print(df[df["State"] == "FL"].head())
+    df_fl = df[df["State"] == "WA"]
+    df_fl["Opioid per capita"] = df_fl["MME"] / df_fl["Population"]
+    # print(df_fl.head())
+
+    # grab pre and post intervention
+    florida_pre = df_fl[(df_fl["Year"] < 2012) & (df_fl["Year"] > 2008)]
+    X = sm.add_constant(florida_pre["Year"])
+
+    # # Fit OLS model
+    model = sm.OLS(florida_pre["Opioid per capita"], X)
+    results = model.fit()
+    slope = results.params["Year"]
+    potential_control = {}
+    mean_opiod = {}
+    for i in pre_defined_states:
+        print(i)
+        table = pq.read_table(opiod_pop_path)
+        df = table.to_pandas()
+        df_state = df[df["State"] == i]
+        df_state["Opioid per capita"] = df_state["MME"] / df_state["Population"]
+        state_pre = df_state[(df_state["Year"] < 2012) & (df_state["Year"] > 2008)]
+        X = sm.add_constant(state_pre["Year"])
+
+        # # Fit OLS model
+        model = sm.OLS(state_pre["Opioid per capita"], X)
+        results = model.fit()
+        model_predict = results.get_prediction(X)
+        print(model_predict.summary_frame())
+        state_slope = results.params["Year"]
+        print(slope, state_slope)
+        potential_control[i] = [state_slope]
+        mean_opiod[i] = np.mean(state_pre["Opioid per capita"])
+
+    return dict(sorted(potential_control.items(), key=lambda item: item[1]))
+
+
+def example_pre_post_wa_cleaned():
+    table = pq.read_table(opiod_pop_path)
+
+    df = table.to_pandas()
+    df_fl = df[df["State"] == "WA"]
+    df_fl["Opioid per capita"] = df_fl["MME"] / df_fl["Population"]
+    print(df_fl.head())
+
+    # grab pre and post intervention
+    florida_pre = df_fl[(df_fl["Year"] < 2012) & (df_fl["Year"] > 2002)]
+    florida_post = df_fl[(df_fl["Year"] >= 2012) & (df_fl["Year"] < 2015)]
+
+    # Create a design matrix
+    X = sm.add_constant(florida_pre["Year"])
+
+    # # Fit OLS model
+    model = sm.OLS(florida_pre["Opioid per capita"], X)
+    results = model.fit()
+    # # Get predictions
+    model_predict = results.get_prediction(X)
+    # this should be how you get the control states
+    print("The slope is: ")
+    print(results.params["Year"])
+    print(results.params)
+    # # Print mean predictions
+    # print(model_predict.summary_frame()["mean"])
+    # print(model_predict.conf_int(alpha=0.05))
+    mean_predictions = model_predict.summary_frame()["mean"]
+    ci = model_predict.conf_int(alpha=0.05)
+    ci_l = model_predict.summary_frame()["mean_ci_lower"]
+    ci_u = model_predict.summary_frame()["mean_ci_upper"]
+    print("here......")
+    print(model_predict.summary_frame())
+    print(ci)
+    plt.plot(
+        florida_pre["Year"],
+        mean_predictions,
+        color="blue",
+        label="Mean Predictions (Pre-2010)",
+    )
+    # plt.fill_between(
+    #     florida_pre["Year"],
+    #     ci_l,
+    #     ci_u,
+    #     color="blue",
+    #     alpha=0.2,
+    # )
+
+    # Fit OLS model for florida_post
+    X_post = sm.add_constant(florida_post["Year"])
+    model_post = sm.OLS(florida_post["Opioid per capita"], X_post)
+    results_post = model_post.fit()
+
+    # Get predictions for florida_post
+    model_predict_post = results_post.get_prediction(X_post)
+    mean_predictions_post = model_predict_post.summary_frame()["mean"]
+    ci = model_predict_post.conf_int(alpha=0.05)
+    # ax.fill_between(x, y_est - y_err, y_est + y_err, alpha=0.2)
+    # Plot the mean predictions for florida_post
+    plt.plot(
+        florida_post["Year"],
+        mean_predictions_post,
+        color="blue",
+    )
+    # plt.fill_between(
+    #     florida_post["Year"],
+    #     ci[:, 0],
+    #     ci[:, 1],
+    #     color="blue",
+    #     alpha=0.2,
+    # )
+    plt.axvline(x=2012, color="red", linestyle="--", label="Year 2010")
+    # "WV", "KY", "ME"
+    df = table.to_pandas()
+
+    # Filter data for the specified states
+    # states_to_process = ["WV", "KY", "ME"]
+    states_to_process = ["HI", "OH", "MA"]
+    df_selected_states = df[df["State"].isin(states_to_process)]
+
+    # Calculate Opioid per capita
+    df_selected_states["Opioid per capita"] = (
+        df_selected_states["MME"] / df_selected_states["Population"]
+    )
+
+    # Print the processed data for the selected states
+    print(df_selected_states.head())
+
+    # Grab pre and post intervention for the selected states
+    selected_states_pre = df_selected_states[
+        (df_selected_states["Year"] < 2012) & (df_selected_states["Year"] > 2008)
+    ]
+    selected_states_post = df_selected_states[
+        (df_selected_states["Year"] >= 2012) & (df_selected_states["Year"] < 2015)
+    ]
+    # Create a design matrix
+    X = sm.add_constant(selected_states_pre["Year"])
+
+    # # Fit OLS model
+    model = sm.OLS(selected_states_pre["Opioid per capita"], X)
+    results = model.fit()
+    # # Get predictions
+    model_predict = results.get_prediction(X)
+    print("The slope is for the three states is: ")
+    print(results.params["Year"])
+    # # Print mean predictions
+    # print(model_predict.summary_frame()["mean"])
+    # print(model_predict.conf_int(alpha=0.05))
+    mean_predictions = model_predict.summary_frame()["mean"]
+    ci = model_predict.conf_int(alpha=0.05)
+    ci_l = model_predict.summary_frame()["mean_ci_lower"]
+    ci_u = model_predict.summary_frame()["mean_ci_upper"]
+    print("here......")
+    print(model_predict.summary_frame())
+    print(ci)
+    plt.plot(
+        selected_states_pre["Year"],
+        mean_predictions,
+        color="green",
+        label="Mean Predictions (Pre-2010)",
+    )
+    # plt.fill_between(
+    #     selected_states_pre["Year"],
+    #     ci_l,
+    #     ci_u,
+    #     color="green",
+    #     alpha=0.2,
+    # )
+    X_post = sm.add_constant(selected_states_post["Year"])
+    model_post = sm.OLS(selected_states_post["Opioid per capita"], X_post)
+    results_post = model_post.fit()
+
+    # Get predictions for florida_post
+    model_predict_post = results_post.get_prediction(X_post)
+    mean_predictions_post = model_predict_post.summary_frame()["mean"]
+    ci = model_predict_post.conf_int(alpha=0.05)
+    # ax.fill_between(x, y_est - y_err, y_est + y_err, alpha=0.2)
+    # Plot the mean predictions for florida_post
+    plt.plot(
+        selected_states_post["Year"],
+        mean_predictions_post,
+        color="green",
+    )
+    # plt.fill_between(
+    #     selected_states_post["Year"],
+    #     ci[:, 0],
+    #     ci[:, 1],
+    #     color="green",
+    #     alpha=0.2,
+    # )
+
+    # Print pre and post intervention data for the selected states
+
+    plt.xlabel("Year")
+    plt.ylabel("Opioid per capita")
+    plt.savefig("../30_results/pre_post_test.png")
+
+
 if __name__ == "__main__":
     # find_control_states_prep(PRE_DEFINED_STATES)
     # example_pre_post_fl()
-    controls = find_control_states("FL", PRE_DEFINED_STATES)
+    # controls = find_control_states("FL", PRE_DEFINED_STATES)
+    # print(controls)
+    # example_pre_post_fl_cleaned()
+    controls = find_control_states_cleaned_fl("FL", PRE_DEFINED_STATES)
+
+    # print(controls)
+    # Extract states and slopes
+    # states = list(controls.keys())
+    # slopes_values = [slope[0] for slope in controls.values()]
+    # print(states)
+    # print(slopes_values)
+    # Extract the slope for Florida
+    florida_slope = controls["FL"][0]
+
+    # Calculate absolute differences and store in a new dictionary
+    differences = {
+        state: abs(slope[0] - florida_slope)
+        for state, slope in controls.items()
+        if state != "FL"
+    }
+
+    # Sort the dictionary by absolute differences in ascending order
+    sorted_differences = dict(sorted(differences.items(), key=operator.itemgetter(1)))
+
+    # Get the top 3 states with the closest slopes
+    closest_states = list(sorted_differences.keys())[:3]
+
+    print(f"The three states with the closest slopes to Florida are: {closest_states}")
+
+    controls = find_control_states_cleaned_wa("WA", PRE_DEFINED_STATES)
+    wa_slope = controls["WA"][0]
+    print(wa_slope)
+    # Calculate absolute differences and store in a new dictionary
+    differences = {
+        state: abs(slope[0] - wa_slope)
+        for state, slope in controls.items()
+        if state != "WA"
+    }
+
+    # Sort the dictionary by absolute differences in ascending order
+    sorted_differences = dict(sorted(differences.items(), key=operator.itemgetter(1)))
+
+    # Get the top 4 states with the closest slopes
+    closest_states = list(sorted_differences.keys())[:3]
+
+    print(f"The four states with the closest slopes to WA are: {closest_states}")
     print(controls)
+
+    # example_pre_post_wa_cleaned()
