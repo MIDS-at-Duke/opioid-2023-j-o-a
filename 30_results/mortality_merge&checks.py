@@ -168,7 +168,7 @@ def impute_for_mortality(pop_mortality_data):
 
 
 def format_percent(x, pos):
-    return f"{x * 100:.4f}%"
+    return f"{x * 100:.3f}%"
 
 
 def plot_pre_post_ols(df, state_code, policy_year):
@@ -240,6 +240,10 @@ def plot_pre_post_ols(df, state_code, policy_year):
     plt.legend()
     plt.tight_layout()
     plt.show()
+    pre_policy_mean = pre_policy["Death_Rate"].mean()
+    post_policy_mean = post_policy["Death_Rate"].mean()
+    print(f"Pre-{policy_year} mean: {pre_policy_mean}")
+    print(f"Post-{policy_year} mean: {post_policy_mean}")
 
 
 def plot_diff_in_diff(treatment_df, control_df, policy_year):
@@ -292,7 +296,7 @@ def plot_diff_in_diff(treatment_df, control_df, policy_year):
         treatment_pre_policy["YEAR"],
         results_treatment_pre.predict(X_treatment_pre),
         color="blue",
-        label=(f"Treatment State: FL"),
+        label=(f"Treatment State: WA"),
     )
     plt.fill_between(
         treatment_pre_policy["YEAR"],
@@ -308,7 +312,7 @@ def plot_diff_in_diff(treatment_df, control_df, policy_year):
         control_pre_policy["YEAR"],
         results_control_pre.predict(X_control_pre),
         color="orange",
-        label=(f"Control States: KY, WV, TN, NV, OR"),
+        label=(f"Control States: OH, MI, ME, HI"),
     )
     plt.fill_between(
         control_pre_policy["YEAR"],
@@ -362,6 +366,28 @@ def plot_diff_in_diff(treatment_df, control_df, policy_year):
     plt.legend()
     plt.tight_layout()
     plt.show()
+    treatment_pre_change = treatment_pre_policy["Death_Rate"].mean()
+    treatment_post_change = treatment_post_policy["Death_Rate"].mean()
+    control_pre_change = control_pre_policy["Death_Rate"].mean()
+    control_post_change = control_post_policy["Death_Rate"].mean()
+    did_treatment = (
+        (treatment_post_change - treatment_pre_change) / treatment_pre_change
+    ) * 100
+    did_control = (
+        (control_post_change - control_pre_change) / control_pre_change
+    ) * 100
+    # Calculate the Difference in Differences
+    diff_in_diff = did_treatment - did_control
+
+    # Calculate standard errors or conduct statistical tests if needed
+    # You can use statistical methods like t-tests or regression models for significance testing
+
+    # Print or use summary statistics as needed
+    print(f"Change in Death Rate for Treatment Group (Pre): {treatment_pre_change}")
+    print(f"Change in Death Rate for Treatment Group (Post): {treatment_post_change}")
+    print(f"Change in Death Rate for Control Group (Pre): {control_pre_change}")
+    print(f"Change in Death Rate for Control Group (Post): {control_post_change}")
+    print(f"Difference in Differences: {diff_in_diff}")
 
 
 # For Washington
@@ -381,10 +407,10 @@ imputed_wa_pop_mort = impute_for_mortality(wa_pop_mort)
 # print(imputed_wa_pop_mort["Death_Rate"].isnull().sum())
 
 wa_controls_mort, o = process_mortality_data(
-    "../00_data/mortality_final.csv", ["KY", "WV", "TN", "NV", "OR"]
+    "../00_data/mortality_final.csv", ["OH", "MI", "ME", "HI"]
 )
 wa_controls_pop = process_population_data(
-    "../00_data/PopFips.csv", ["KY", "WV", "TN", "NV", "OR"]
+    "../00_data/PopFips.csv", ["OH", "MI", "ME", "HI"]
 )
 clean_county(wa_controls_mort)
 clean_county(wa_controls_pop)
@@ -395,7 +421,8 @@ imputed_wa_controls = impute_for_mortality(wa_controls_pop_mort)
 print(wa_controls_pop_mort["Deaths"].isnull().sum())
 print(imputed_wa_controls["Death_Rate"].isnull().sum())
 
-plot_diff_in_diff(imputed_wa_pop_mort, imputed_wa_controls, 2010)
+plot_pre_post_ols(imputed_wa_pop_mort, "FL", 2010)
+# plot_diff_in_diff(imputed_wa_pop_mort, imputed_wa_controls, 2012)
 
 
 def calculate_slope(df):
