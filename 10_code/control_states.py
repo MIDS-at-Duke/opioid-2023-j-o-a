@@ -79,6 +79,7 @@ folder_path = "../00_data/states/"
 population_path = "../00_data/PopFips.csv"
 # Specify the path to the opiod_pop csv
 opiod_pop_path = "../00_data/opioid_pop_clean.parquet"
+opiod_pop_month_path = "../00_data/opioid_pop_months_clean.parquet"
 
 
 def find_control_states_prep(pre_defined_states):
@@ -673,8 +674,8 @@ def find_control_states_cleaned_fl(state, pre_defined_states):
         state: abs(mean - florida_mean) for state, mean in mean_opiod.items()
     }
     # print(differences)
-    top_three_states = sorted(differences, key=differences.get)[:4]
-    # print(top_three_states)
+    top_three_states = sorted(differences, key=differences.get)[:11]
+    print(top_three_states)
 
     return dict(sorted(potential_control.items(), key=lambda item: item[1]))
 
@@ -878,55 +879,283 @@ def example_pre_post_wa_cleaned():
     plt.savefig("../30_results/pre_post_test.png")
 
 
+def example_pre_post_tx():
+    # MO, MN, AR
+    """example pre post tx"""
+    table = pq.read_table(opiod_pop_month_path)
+    df = table.to_pandas()
+    df_tx = df[df["State"] == "TX"]
+    df_tx["Opioid per capita"] = df_tx["MME"] / df_tx["Population"]
+    print(df_tx.head())
+    # Texas BEFORE AND AFTER 2007
+    # data has years by month YEAR 2006 Month 1, Year 2006 Month 2, etc.
+    # 12 months for 2006, and then 12 months after 2007 or 24 months
+    # how do I do add the constant when the years are different
+    # grab pre and post intervention
+    # tx_pre = df_tx[(df_tx["Year"] < 2007) & (df_tx["Year"] > 2005)]
+    # tx_post = df_tx[(df_tx["Year"] >= 2007) & (df_tx["Year"] < 2009)]
+    # tx_pre.sort_values(by="Year", inplace=True)
+    # tx_post.sort_values(by="Year", inplace=True)
+    # -12, -11, -10, -9, -8, -7, -6, -5. -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6 to -12
+
+    # df_tx["YearMonth"] = pd.to_datetime(
+    #     df_tx["Year"].astype(str) + "-" + df_tx["Month"].astype(str), format="%Y-%m"
+    # )
+
+    # Calculate the difference in months between "YearMonth" and 2007-01-01
+    df_tx["Months since Policy Implmentation"] = (
+        (df_tx["Year"] - 2007) * 12 + df_tx["Month"] - 1
+    )
+    # print(df_tx["Months since Policy Implmentation"].head())
+    tx_pre = df_tx[(df_tx["Months since Policy Implmentation"] < 0)]
+    tx_post = df_tx[
+        (df_tx["Months since Policy Implmentation"] >= 0)
+        & (df_tx["Months since Policy Implmentation"] < 13)
+    ]
+
+    tx_pre.sort_values(by="Months since Policy Implmentation", inplace=True)
+    tx_post.sort_values(by="Months since Policy Implmentation", inplace=True)
+
+    # tx_post.to_csv("../20_intermediate_files/tx_stuff.csv", index=False)
+
+    X = sm.add_constant(tx_pre["Months since Policy Implmentation"])
+    model = sm.OLS(tx_pre["Opioid per capita"], X)
+    results = model.fit()
+    model_predict = results.get_prediction(X)
+
+    tx_pre["predicted_opiod_per_cap"] = model_predict.summary_frame()["mean"]
+    tx_pre[["ci_low", "ci_high"]] = model_predict.conf_int(alpha=0.05)
+
+    X_post = sm.add_constant(tx_post["Months since Policy Implmentation"])
+    model_post = sm.OLS(tx_post["Opioid per capita"], X_post)
+    results_post = model_post.fit()
+    model_predict_post = results_post.get_prediction(X_post)
+    tx_post["predicted_opiod_per_cap"] = model_predict_post.summary_frame()["mean"]
+    tx_post[["ci_low", "ci_high"]] = model_predict_post.conf_int(alpha=0.05)
+
+    fig, ax = plt.subplots()
+    ax.plot(
+        tx_pre["Months since Policy Implmentation"],
+        tx_pre["predicted_opiod_per_cap"],
+        label="Pre-Policy",
+    )
+    ax.plot(
+        tx_post["Months since Policy Implmentation"],
+        tx_post["predicted_opiod_per_cap"],
+        label="Post-Policy",
+    )
+
+    ax.fill_between(
+        tx_pre["Months since Policy Implmentation"],
+        tx_pre["ci_low"],
+        tx_pre["ci_high"],
+        alpha=0.2,
+    )
+
+    ax.fill_between(
+        tx_post["Months since Policy Implmentation"],
+        tx_post["ci_low"],
+        tx_post["ci_high"],
+        alpha=0.2,
+    )
+
+    df = table.to_pandas()
+
+    # Filter data for the specified states
+    states_to_process = ["MO", "MN", "AR"]
+    df_selected_states = df[df["State"].isin(states_to_process)]
+
+    # Calculate Opioid per capita
+    df_selected_states["Opioid per capita"] = (
+        df_selected_states["MME"] / df_selected_states["Population"]
+    )
+
+    df_selected_states["Months since Policy Implmentation"] = (
+        (df_selected_states["Year"] - 2007) * 12 + df_selected_states["Month"] - 1
+    )
+
+    # df_selected_states.to_csv("../20_intermediate_files/tx_stuff.csv", index=False)
+
+    # grab pre and post intervention
+    control_pre = df_selected_states[
+        (df_selected_states["Months since Policy Implmentation"] < 0)
+    ]
+    control_post = df_selected_states[
+        (df_selected_states["Months since Policy Implmentation"] >= 0)
+        & (df_selected_states["Months since Policy Implmentation"] < 13)
+    ]
+
+    control_post.to_csv("../20_intermediate_files/tx_stuff.csv", index=False)
+
+    control_pre.sort_values(by="Months since Policy Implmentation", inplace=True)
+    control_post.sort_values(by="Months since Policy Implmentation", inplace=True)
+
+    X_control = sm.add_constant(control_pre["Months since Policy Implmentation"])
+    # print(X_control)
+    # Fit OLS model
+    # print(control_pre["Opioid per capita"])
+    model_control = sm.OLS(control_pre["Opioid per capita"], X_control)
+    results_control = model_control.fit()
+    # Get predictions
+    model_predict_control = results_control.get_prediction(X_control)
+
+    control_pre["predicted_opiod_per_cap"] = model_predict_control.summary_frame()[
+        "mean"
+    ]
+    # print(control_pre["predicted_opiod_per_cap"])
+    control_pre[["ci_low", "ci_high"]] = model_predict_control.conf_int(alpha=0.05)
+
+    X_control_post = sm.add_constant(control_post["Months since Policy Implmentation"])
+    print(X_control_post)
+    model_control_post = sm.OLS(control_post["Opioid per capita"], X_control_post)
+    results_control_post = model_control_post.fit()
+    model_predict_control_post = results_control_post.get_prediction(X_control_post)
+
+    control_post[
+        "predicted_opiod_per_cap"
+    ] = model_predict_control_post.summary_frame()["mean"]
+    control_post[["ci_low", "ci_high"]] = model_predict_control_post.conf_int(
+        alpha=0.05
+    )
+
+    ax.plot(
+        control_pre["Months since Policy Implmentation"],
+        control_pre["predicted_opiod_per_cap"],
+        label="Control Pre-Policy",
+        color="orange",
+    )
+    ax.plot(
+        control_post["Months since Policy Implmentation"],
+        control_post["predicted_opiod_per_cap"],
+        label="Control Post-Policy",
+        color="orange",
+    )
+    ax.fill_between(
+        control_pre["Months since Policy Implmentation"],
+        control_pre["ci_low"],
+        control_pre["ci_high"],
+        alpha=0.2,
+        color="orange",
+    )
+
+    ax.fill_between(
+        control_post["Months since Policy Implmentation"],
+        control_post["ci_low"],
+        control_post["ci_high"],
+        alpha=0.2,
+        color="orange",
+    )
+
+    ax.axvline(x=0, color="black", linestyle="--")
+
+    ax.set_xlabel("Month")
+    ax.set_ylabel("Opioid (MME) per Capita")
+    ax.set_title("Texas Average Opioid per Capita Shipments")
+    # ax.legend(loc="upper left")
+    # ax.set_xlim(
+    #     min(tx_pre["Month"].min(), tx_post["Month"].min()),
+    #     max(tx_pre["Month"].max(), tx_post["Month"].max()),
+    # )
+    plt.show()
+
+
+def find_control_states_cleaned_tx(PRE_DEFINED_STATES):
+    """example pre post tx"""
+    table = pq.read_table(opiod_pop_month_path)
+    df = table.to_pandas()
+    df_tx = df[df["State"] == "TX"]
+    df_tx["Opioid per capita"] = df_tx["MME"] / df_tx["Population"]
+    print(df_tx.head())
+    # Texas BEFORE AND AFTER 2007
+    # data has years by month YEAR 2006 Month 1, Year 2006 Month 2, etc.
+    # 12 months for 2006, and then 12 months after 2007 or 24 months
+    # how do I do add the constant when the years are different
+    # grab pre and post intervention
+    # tx_pre = df_tx[(df_tx["Year"] < 2007) & (df_tx["Year"] > 2005)]
+    # tx_post = df_tx[(df_tx["Year"] >= 2007) & (df_tx["Year"] < 2009)]
+    # tx_pre.sort_values(by="Year", inplace=True)
+    # tx_post.sort_values(by="Year", inplace=True)
+    # -12, -11, -10, -9, -8, -7, -6, -5. -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6 to -12
+
+    # df_tx["YearMonth"] = pd.to_datetime(
+    #     df_tx["Year"].astype(str) + "-" + df_tx["Month"].astype(str), format="%Y-%m"
+    # )
+
+    # Calculate the difference in months between "YearMonth" and 2007-01-01
+    df_tx["Months since Policy Implmentation"] = (
+        (df_tx["Year"] - 2007) * 12 + df_tx["Month"] - 1
+    )
+    # print(df_tx["Months since Policy Implmentation"].head())
+    tx_pre = df_tx[(df_tx["Months since Policy Implmentation"] < 0)]
+    tx_post = df_tx[
+        (df_tx["Months since Policy Implmentation"] >= 0)
+        & (df_tx["Months since Policy Implmentation"] < 13)
+    ]
+
+    tx_pre.sort_values(by="Months since Policy Implmentation", inplace=True)
+    tx_post.sort_values(by="Months since Policy Implmentation", inplace=True)
+
+    # tx_post.to_csv("../20_intermediate_files/tx_stuff.csv", index=False)
+
+    X = sm.add_constant(tx_pre["Months since Policy Implmentation"])
+    model = sm.OLS(tx_pre["Opioid per capita"], X)
+    results = model.fit()
+    model_predict = results.get_prediction(X)
+    pass
+
+
+
+
 if __name__ == "__main__":
     # find_control_states_prep(PRE_DEFINED_STATES)
     # example_pre_post_fl()
     # controls = find_control_states("FL", PRE_DEFINED_STATES)
     # print(controls)
     # example_pre_post_fl_cleaned()
-    controls = find_control_states_cleaned_fl("FL", PRE_DEFINED_STATES)
+    # controls = find_control_states_cleaned_fl("FL", PRE_DEFINED_STATES)
 
+    # # print(controls)
+    # # Extract states and slopes
+    # # states = list(controls.keys())
+    # # slopes_values = [slope[0] for slope in controls.values()]
+    # # print(states)
+    # # print(slopes_values)
+    # # Extract the slope for Florida
+    # florida_slope = controls["FL"][0]
+
+    # # Calculate absolute differences and store in a new dictionary
+    # differences = {
+    #     state: abs(slope[0] - florida_slope)
+    #     for state, slope in controls.items()
+    #     if state != "FL"
+    # }
+
+    # # Sort the dictionary by absolute differences in ascending order
+    # sorted_differences = dict(sorted(differences.items(), key=operator.itemgetter(1)))
+
+    # # Get the top 3 states with the closest slopes
+    # closest_states = list(sorted_differences.keys())[:10]
+
+    # print(f"The three states with the closest slopes to Florida are: {closest_states}")
+
+    # controls = find_control_states_cleaned_wa("WA", PRE_DEFINED_STATES)
+    # wa_slope = controls["WA"][0]
+    # print(wa_slope)
+    # # Calculate absolute differences and store in a new dictionary
+    # differences = {
+    #     state: abs(slope[0] - wa_slope)
+    #     for state, slope in controls.items()
+    #     if state != "WA"
+    # }
+
+    # # Sort the dictionary by absolute differences in ascending order
+    # sorted_differences = dict(sorted(differences.items(), key=operator.itemgetter(1)))
+
+    # # Get the top 4 states with the closest slopes
+    # closest_states = list(sorted_differences.keys())[:10]
+
+    # print(f"The four states with the closest slopes to WA are: {closest_states}")
     # print(controls)
-    # Extract states and slopes
-    # states = list(controls.keys())
-    # slopes_values = [slope[0] for slope in controls.values()]
-    # print(states)
-    # print(slopes_values)
-    # Extract the slope for Florida
-    florida_slope = controls["FL"][0]
-
-    # Calculate absolute differences and store in a new dictionary
-    differences = {
-        state: abs(slope[0] - florida_slope)
-        for state, slope in controls.items()
-        if state != "FL"
-    }
-
-    # Sort the dictionary by absolute differences in ascending order
-    sorted_differences = dict(sorted(differences.items(), key=operator.itemgetter(1)))
-
-    # Get the top 3 states with the closest slopes
-    closest_states = list(sorted_differences.keys())[:3]
-
-    print(f"The three states with the closest slopes to Florida are: {closest_states}")
-
-    controls = find_control_states_cleaned_wa("WA", PRE_DEFINED_STATES)
-    wa_slope = controls["WA"][0]
-    print(wa_slope)
-    # Calculate absolute differences and store in a new dictionary
-    differences = {
-        state: abs(slope[0] - wa_slope)
-        for state, slope in controls.items()
-        if state != "WA"
-    }
-
-    # Sort the dictionary by absolute differences in ascending order
-    sorted_differences = dict(sorted(differences.items(), key=operator.itemgetter(1)))
-
-    # Get the top 4 states with the closest slopes
-    closest_states = list(sorted_differences.keys())[:3]
-
-    print(f"The four states with the closest slopes to WA are: {closest_states}")
-    print(controls)
 
     # example_pre_post_wa_cleaned()
+    example_pre_post_tx()

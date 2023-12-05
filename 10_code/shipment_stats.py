@@ -200,3 +200,4 @@ def wa_shipment_stats():
 if __name__ == "__main__":
     fl_shipment_stats()
     wa_shipment_stats()
+    # add texas when you can

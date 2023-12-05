@@ -9,6 +9,7 @@ import seaborn.objects as so
 import matplotlib.patches as mpatches
 
 opiod_pop_path = "../00_data/opioid_pop_clean.parquet"
+opiod_pop_month_path = "../00_data/opioid_pop_months_clean.parquet"
 
 
 def pre_post_fl_cleaned():
@@ -226,7 +227,7 @@ def diff_diff_fl_cleaned():
     df = table.to_pandas()
 
     # Filter data for the specified states
-    states_to_process = ["DE", "NV", "TN"]
+    states_to_process = ["KY", "WV", "TN", "NV", "OR"]
     df_selected_states = df[df["State"].isin(states_to_process)]
 
     # Calculate Opioid per capita
@@ -273,20 +274,20 @@ def diff_diff_fl_cleaned():
         control_pre["Year"],
         control_pre["predicted_opiod_per_cap"],
         label="Control Pre-Policy",
-        color="red",
+        color="orange",
     )
     ax.plot(
         control_post["Year"],
         control_post["predicted_opiod_per_cap"],
         label="Control Post-Policy",
-        color="red",
+        color="orange",
     )
     ax.fill_between(
         control_pre["Year"],
         control_pre["ci_low"],
         control_pre["ci_high"],
         alpha=0.2,
-        color="red",
+        color="orange",
     )
 
     ax.fill_between(
@@ -294,7 +295,7 @@ def diff_diff_fl_cleaned():
         control_post["ci_low"],
         control_post["ci_high"],
         alpha=0.2,
-        color="red",
+        color="orange",
     )
 
     ax.axvline(x=2010, color="black", linestyle="--")
@@ -302,10 +303,10 @@ def diff_diff_fl_cleaned():
     ax.set_xlabel("Year")
     ax.set_ylabel("Opioid (MME) per Capita")
     ax.set_title("Average Opioid per Capita Shipments")
-    red_patch = mpatches.Patch(color="red", label="DE, NV, TN")
+    orange_patch = mpatches.Patch(color="orange", label="KY, WV, TN, NV, OR")
     blue_patch = mpatches.Patch(color="blue", label="FL")
 
-    plt.legend(handles=[red_patch, blue_patch], loc="upper left")
+    plt.legend(handles=[orange_patch, blue_patch], loc="upper left")
 
     ax.set_xlim(
         min(florida_pre["Year"].min(), florida_post["Year"].min()),
@@ -382,7 +383,7 @@ def diff_diff_wa_cleaned():
     df = table.to_pandas()
 
     # Filter data for the specified states
-    states_to_process = ["HI", "OH", "MA"]
+    states_to_process = ["OH", "MI", "ME", "HI"]
     df_selected_states = df[df["State"].isin(states_to_process)]
 
     # Calculate Opioid per capita
@@ -453,8 +454,7 @@ def diff_diff_wa_cleaned():
         alpha=0.2,
         color="orange",
     )
-
-    orange_patch = mpatches.Patch(color="orange", label="HI, OH, MA")
+    orange_patch = mpatches.Patch(color="orange", label="OH, MI, ME, HI")
     blue_patch = mpatches.Patch(color="blue", label="WA")
 
     plt.legend(handles=[orange_patch, blue_patch])
@@ -472,8 +472,259 @@ def diff_diff_wa_cleaned():
     plt.show()
 
 
+def pre_post_tx_cleaned():
+    """generate texas pre-post"""
+    table = pq.read_table(opiod_pop_month_path)
+    df = table.to_pandas()
+    df_tx = df[df["State"] == "TX"]
+    df_tx["Opioid per capita"] = df_tx["MME"] / df_tx["Population"]
+    df_tx["Months since Policy Implmentation"] = (
+        (df_tx["Year"] - 2007) * 12 + df_tx["Month"] - 1
+    )
+    # print(df_tx["Months since Policy Implmentation"].head())
+    tx_pre = df_tx[(df_tx["Months since Policy Implmentation"] < 0)]
+    tx_post = df_tx[
+        (df_tx["Months since Policy Implmentation"] >= 0)
+        & (df_tx["Months since Policy Implmentation"] < 13)
+    ]
+
+    tx_pre.sort_values(by="Months since Policy Implmentation", inplace=True)
+    tx_post.sort_values(by="Months since Policy Implmentation", inplace=True)
+
+    X = sm.add_constant(tx_pre["Months since Policy Implmentation"])
+    model = sm.OLS(tx_pre["Opioid per capita"], X)
+    results = model.fit()
+    model_predict = results.get_prediction(X)
+
+    tx_pre["predicted_opiod_per_cap"] = model_predict.summary_frame()["mean"]
+    tx_pre[["ci_low", "ci_high"]] = model_predict.conf_int(alpha=0.05)
+
+    X_post = sm.add_constant(tx_post["Months since Policy Implmentation"])
+    model_post = sm.OLS(tx_post["Opioid per capita"], X_post)
+    results_post = model_post.fit()
+    model_predict_post = results_post.get_prediction(X_post)
+    tx_post["predicted_opiod_per_cap"] = model_predict_post.summary_frame()["mean"]
+    tx_post[["ci_low", "ci_high"]] = model_predict_post.conf_int(alpha=0.05)
+
+    fig, ax = plt.subplots()
+    ax.plot(
+        tx_pre["Months since Policy Implmentation"],
+        tx_pre["predicted_opiod_per_cap"],
+        label="Pre-Policy",
+    )
+    ax.plot(
+        tx_post["Months since Policy Implmentation"],
+        tx_post["predicted_opiod_per_cap"],
+        label="Post-Policy",
+    )
+
+    ax.fill_between(
+        tx_pre["Months since Policy Implmentation"],
+        tx_pre["ci_low"],
+        tx_pre["ci_high"],
+        alpha=0.2,
+    )
+
+    ax.fill_between(
+        tx_post["Months since Policy Implmentation"],
+        tx_post["ci_low"],
+        tx_post["ci_high"],
+        alpha=0.2,
+    )
+
+    ax.axvline(x=0, color="black", linestyle="--")
+
+    ax.set_xlabel("Months since Policy Implmentation")
+    ax.set_ylabel("Opioid (MME) per Capita")
+    ax.set_title("Texas Average Opioid per Capita Shipments")
+    ax.legend(loc="upper left")
+
+    ax.set_xlim(
+        min(
+            tx_pre["Months since Policy Implmentation"].min(),
+            tx_post["Months since Policy Implmentation"].min(),
+        ),
+        max(
+            tx_pre["Months since Policy Implmentation"].max(),
+            tx_post["Months since Policy Implmentation"].max(),
+        ),
+    )
+    plt.savefig("../30_results/tx_pre_post.png")
+    plt.show()
+
+
+def diff_diff_tx_cleaned():
+    """diff diff plot for texas"""
+    table = pq.read_table(opiod_pop_month_path)
+    df = table.to_pandas()
+    df_tx = df[df["State"] == "TX"]
+    df_tx["Opioid per capita"] = df_tx["MME"] / df_tx["Population"]
+
+    df_tx["Months since Policy Implmentation"] = (
+        (df_tx["Year"] - 2007) * 12 + df_tx["Month"] - 1
+    )
+    tx_pre = df_tx[(df_tx["Months since Policy Implmentation"] < 0)]
+    tx_post = df_tx[
+        (df_tx["Months since Policy Implmentation"] >= 0)
+        & (df_tx["Months since Policy Implmentation"] < 13)
+    ]
+
+    tx_pre.sort_values(by="Months since Policy Implmentation", inplace=True)
+    tx_post.sort_values(by="Months since Policy Implmentation", inplace=True)
+
+    X = sm.add_constant(tx_pre["Months since Policy Implmentation"])
+    model = sm.OLS(tx_pre["Opioid per capita"], X)
+    results = model.fit()
+    model_predict = results.get_prediction(X)
+
+    tx_pre["predicted_opiod_per_cap"] = model_predict.summary_frame()["mean"]
+    tx_pre[["ci_low", "ci_high"]] = model_predict.conf_int(alpha=0.05)
+
+    X_post = sm.add_constant(tx_post["Months since Policy Implmentation"])
+    model_post = sm.OLS(tx_post["Opioid per capita"], X_post)
+    results_post = model_post.fit()
+    model_predict_post = results_post.get_prediction(X_post)
+    tx_post["predicted_opiod_per_cap"] = model_predict_post.summary_frame()["mean"]
+    tx_post[["ci_low", "ci_high"]] = model_predict_post.conf_int(alpha=0.05)
+
+    fig, ax = plt.subplots()
+    ax.plot(
+        tx_pre["Months since Policy Implmentation"],
+        tx_pre["predicted_opiod_per_cap"],
+        label="Pre-Policy",
+        color="blue",
+    )
+    ax.plot(
+        tx_post["Months since Policy Implmentation"],
+        tx_post["predicted_opiod_per_cap"],
+        label="Post-Policy",
+        color="blue",
+    )
+
+    ax.fill_between(
+        tx_pre["Months since Policy Implmentation"],
+        tx_pre["ci_low"],
+        tx_pre["ci_high"],
+        alpha=0.2,
+        color="blue",
+    )
+
+    ax.fill_between(
+        tx_post["Months since Policy Implmentation"],
+        tx_post["ci_low"],
+        tx_post["ci_high"],
+        alpha=0.2,
+        color="blue",
+    )
+
+    df = table.to_pandas()
+
+    # Filter data for the specified states
+    states_to_process = ["MO", "MN", "AR"]
+    df_selected_states = df[df["State"].isin(states_to_process)]
+
+    # Calculate Opioid per capita
+    df_selected_states["Opioid per capita"] = (
+        df_selected_states["MME"] / df_selected_states["Population"]
+    )
+
+    df_selected_states["Months since Policy Implmentation"] = (
+        (df_selected_states["Year"] - 2007) * 12 + df_selected_states["Month"] - 1
+    )
+    # grab pre and post intervention
+    control_pre = df_selected_states[
+        (df_selected_states["Months since Policy Implmentation"] < 0)
+    ]
+    control_post = df_selected_states[
+        (df_selected_states["Months since Policy Implmentation"] >= 0)
+        & (df_selected_states["Months since Policy Implmentation"] < 13)
+    ]
+
+    control_pre.sort_values(by="Months since Policy Implmentation", inplace=True)
+    control_post.sort_values(by="Months since Policy Implmentation", inplace=True)
+
+    X_control = sm.add_constant(control_pre["Months since Policy Implmentation"])
+
+    model_control = sm.OLS(control_pre["Opioid per capita"], X_control)
+    results_control = model_control.fit()
+    model_predict_control = results_control.get_prediction(X_control)
+
+    control_pre["predicted_opiod_per_cap"] = model_predict_control.summary_frame()[
+        "mean"
+    ]
+    # print(control_pre["predicted_opiod_per_cap"])
+    control_pre[["ci_low", "ci_high"]] = model_predict_control.conf_int(alpha=0.05)
+
+    X_control_post = sm.add_constant(control_post["Months since Policy Implmentation"])
+    print(X_control_post)
+    model_control_post = sm.OLS(control_post["Opioid per capita"], X_control_post)
+    results_control_post = model_control_post.fit()
+    model_predict_control_post = results_control_post.get_prediction(X_control_post)
+
+    control_post[
+        "predicted_opiod_per_cap"
+    ] = model_predict_control_post.summary_frame()["mean"]
+
+    control_post[["ci_low", "ci_high"]] = model_predict_control_post.conf_int(
+        alpha=0.05
+    )
+
+    ax.plot(
+        control_pre["Months since Policy Implmentation"],
+        control_pre["predicted_opiod_per_cap"],
+        label="Control Pre-Policy",
+        color="orange",
+    )
+    ax.plot(
+        control_post["Months since Policy Implmentation"],
+        control_post["predicted_opiod_per_cap"],
+        label="Control Post-Policy",
+        color="orange",
+    )
+    ax.fill_between(
+        control_pre["Months since Policy Implmentation"],
+        control_pre["ci_low"],
+        control_pre["ci_high"],
+        alpha=0.2,
+        color="orange",
+    )
+
+    ax.fill_between(
+        control_post["Months since Policy Implmentation"],
+        control_post["ci_low"],
+        control_post["ci_high"],
+        alpha=0.2,
+        color="orange",
+    )
+
+    ax.axvline(x=0, color="black", linestyle="--")
+
+    ax.set_xlabel("Months since Policy Implmentation")
+    ax.set_ylabel("Opioid (MME) per Capita")
+    ax.set_title("Average Opioid per Capita Shipments")
+    ax.set_xlim(
+        min(
+            tx_pre["Months since Policy Implmentation"].min(),
+            tx_post["Months since Policy Implmentation"].min(),
+        ),
+        max(
+            tx_pre["Months since Policy Implmentation"].max(),
+            tx_post["Months since Policy Implmentation"].max(),
+        ),
+    )
+    orange_patch = mpatches.Patch(color="orange", label="MO, MN, AR")
+    blue_patch = mpatches.Patch(color="blue", label="TX")
+
+    plt.legend(handles=[orange_patch, blue_patch])
+    plt.savefig("../30_results/tx_diff_diff.png")
+
+    plt.show()
+
+
 if __name__ == "__main__":
-    pre_post_fl_cleaned()
-    pre_post_wa_cleaned()
-    diff_diff_fl_cleaned()
-    diff_diff_wa_cleaned()
+    # pre_post_fl_cleaned()
+    # pre_post_wa_cleaned()
+    # diff_diff_fl_cleaned()
+    # diff_diff_wa_cleaned()
+    # pre_post_tx_cleaned()
+    diff_diff_tx_cleaned()
