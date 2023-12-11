@@ -391,8 +391,8 @@ def plot_diff_in_diff(treatment_df, control_df, policy_year):
 
 
 # For Washington
-wa_mort, o = process_mortality_data("../00_data/mortality_final.csv", "FL")
-wa_pop = process_population_data("../00_data/PopFips.csv", "FL")
+wa_mort, o = process_mortality_data("../00_data/mortality_final.csv", "TX")
+wa_pop = process_population_data("../00_data/PopFips.csv", "TX")
 clean_county(wa_mort)
 clean_county(wa_pop)
 wa_pop_mort = merge_mortality_population(wa_pop, wa_mort, 2003, 2015)
@@ -407,11 +407,9 @@ imputed_wa_pop_mort = impute_for_mortality(wa_pop_mort)
 # print(imputed_wa_pop_mort["Death_Rate"].isnull().sum())
 
 wa_controls_mort, o = process_mortality_data(
-    "../00_data/mortality_final.csv", ["OH", "MI", "ME", "HI"]
+    "../00_data/mortality_final.csv", ["MO", "MN", "MR"]
 )
-wa_controls_pop = process_population_data(
-    "../00_data/PopFips.csv", ["OH", "MI", "ME", "HI"]
-)
+wa_controls_pop = process_population_data("../00_data/PopFips.csv", ["MO", "MN", "MR"])
 clean_county(wa_controls_mort)
 clean_county(wa_controls_pop)
 wa_controls_pop_mort = merge_mortality_population(
@@ -421,8 +419,8 @@ imputed_wa_controls = impute_for_mortality(wa_controls_pop_mort)
 print(wa_controls_pop_mort["Deaths"].isnull().sum())
 print(imputed_wa_controls["Death_Rate"].isnull().sum())
 
-plot_pre_post_ols(imputed_wa_pop_mort, "FL", 2010)
-# plot_diff_in_diff(imputed_wa_pop_mort, imputed_wa_controls, 2012)
+# plot_pre_post_ols(imputed_wa_pop_mort, "FL", 2010)
+plot_diff_in_diff(imputed_wa_pop_mort, imputed_wa_controls, 2007)
 
 
 def calculate_slope(df):
