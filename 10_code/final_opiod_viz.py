@@ -11,6 +11,359 @@ import matplotlib.patches as mpatches
 opiod_pop_path = "../00_data/opioid_pop_clean.parquet"
 opiod_pop_month_path = "../00_data/opioid_pop_months_clean.parquet"
 
+fl_control_counties_dropped = [
+    "anderson",
+    "barren",
+    "bedford",
+    "bell",
+    "benton",
+    "berkeley",
+    "blount",
+    "boyd",
+    "boyle",
+    "bradley",
+    "brooke",
+    "bullitt",
+    "cabell",
+    "calloway",
+    "campbell",
+    "carsoncity",
+    "carter",
+    "cheatham",
+    "churchill",
+    "clackamas",
+    "claiborne",
+    "clark",
+    "clatsop",
+    "cocke",
+    "coffee",
+    "columbia",
+    "coos",
+    "cumberland",
+    "davidson",
+    "daviess",
+    "deschutes",
+    "dickson",
+    "douglas",
+    "dyer",
+    "elko",
+    "fayette",
+    "floyd",
+    "gibson",
+    "giles",
+    "graves",
+    "grayson",
+    "greenbrier",
+    "greenup",
+    "hamblen",
+    "hamilton",
+    "hardeman",
+    "hardin",
+    "harlan",
+    "harrison",
+    "hawkins",
+    "henderson",
+    "henry",
+    "hopkins",
+    "jessamine",
+    "josephine",
+    "kanawha",
+    "kenton",
+    "klamath",
+    "knox",
+    "lane",
+    "lauderdale",
+    "laurel",
+    "lawrence",
+    "letcher",
+    "linn",
+    "logan",
+    "loudon",
+    "lyon",
+    "madison",
+    "malheur",
+    "marion",
+    "marshall",
+    "maury",
+    "mccracken",
+    "mcminn",
+    "mcnairy",
+    "meade",
+    "mercer",
+    "mingo",
+    "monongalia",
+    "montgomery",
+    "muhlenberg",
+    "multnomah",
+    "nelson",
+    "nye",
+    "obion",
+    "ohio",
+    "oldham",
+    "pike",
+    "preston",
+    "putnam",
+    "raleigh",
+    "randolph",
+    "rhea",
+    "roane",
+    "robertson",
+    "rutherford",
+    "scott",
+    "sevier",
+    "shelby",
+    "sullivan",
+    "sumner",
+    "tillamook",
+    "tipton",
+    "umatilla",
+    "upshur",
+    "wasco",
+    "washoe",
+    "wayne",
+    "weakley",
+    "white",
+    "whitley",
+    "williamson",
+    "wilson",
+    "wood",
+    "woodford",
+    "yamhill",
+]
+
+tx_control_counties_dropped = [
+    "adair",
+    "audrain",
+    "barry",
+    "becker",
+    "beltrami",
+    "benton",
+    "blueearth",
+    "brown",
+    "callaway",
+    "camden",
+    "carlton",
+    "carver",
+    "chisago",
+    "clinton",
+    "cole",
+    "crawford",
+    "crowwing",
+    "douglas",
+    "fillmore",
+    "freeborn",
+    "goodhue",
+    "henry",
+    "isanti",
+    "itasca",
+    "johnson",
+    "kandiyohi",
+    "laclede",
+    "lafayette",
+    "lawrence",
+    "lesueur",
+    "lyon",
+    "marion",
+    "martin",
+    "mcdonald",
+    "mcleod",
+    "meeker",
+    "millelacs",
+    "miller",
+    "morrison",
+    "mower",
+    "newton",
+    "nicollet",
+    "nobles",
+    "nodaway",
+    "ottertail",
+    "pettis",
+    "pine",
+    "randolph",
+    "ray",
+    "rice",
+    "saline",
+    "scott",
+    "steele",
+    "stoddard",
+    "stone",
+    "taney",
+    "texas",
+    "todd",
+    "vernon",
+    "wabasha",
+    "winona",
+    "wright",
+]
+
+wa_control_counties_dropped = [
+    "allegan",
+    "allen",
+    "androscoggin",
+    "aroostook",
+    "ashland",
+    "ashtabula",
+    "athens",
+    "barry",
+    "bay",
+    "belmont",
+    "berrien",
+    "calhoun",
+    "clark",
+    "clermont",
+    "clinton",
+    "columbiana",
+    "cumberland",
+    "cuyahoga",
+    "darke",
+    "delaware",
+    "eaton",
+    "erie",
+    "fairfield",
+    "geauga",
+    "genesee",
+    "grandtraverse",
+    "hamilton",
+    "hancock",
+    "hawaii",
+    "honolulu",
+    "ingham",
+    "ionia",
+    "isabella",
+    "kalamazoo",
+    "kauai",
+    "kennebec",
+    "kent",
+    "lake",
+    "lapeer",
+    "lawrence",
+    "lenawee",
+    "licking",
+    "livingston",
+    "lorain",
+    "lucas",
+    "macomb",
+    "mahoning",
+    "marion",
+    "marquette",
+    "maui",
+    "medina",
+    "miami",
+    "midland",
+    "monroe",
+    "montcalm",
+    "montgomery",
+    "muskegon",
+    "muskingum",
+    "oakland",
+    "ottawa",
+    "oxford",
+    "penobscot",
+    "pickaway",
+    "portage",
+    "richland",
+    "ross",
+    "saginaw",
+    "saintclair",
+    "saintjoseph",
+    "sandusky",
+    "scioto",
+    "seneca",
+    "shiawassee",
+    "stark",
+    "summit",
+    "trumbull",
+    "tuscarawas",
+    "tuscola",
+    "vanburen",
+    "washtenaw",
+    "wayne",
+    "wood",
+    "york",
+]
+
+tx_counties_dropped = [
+    "angelina",
+    "atascosa",
+    "austin",
+    "bandera",
+    "bastrop",
+    "bee",
+    "bosque",
+    "bowie",
+    "brown",
+    "burnet",
+    "caldwell",
+    "calhoun",
+    "cass",
+    "chambers",
+    "cherokee",
+    "colorado",
+    "coryell",
+    "deafsmith",
+    "dewitt",
+    "eastland",
+    "erath",
+    "fannin",
+    "fayette",
+    "freestone",
+    "gillespie",
+    "gonzales",
+    "gray",
+    "grimes",
+    "hale",
+    "harrison",
+    "hill",
+    "hockley",
+    "hood",
+    "houston",
+    "howard",
+    "hutchinson",
+    "jasper",
+    "jimwells",
+    "jones",
+    "kendall",
+    "kleberg",
+    "lamar",
+    "lampasas",
+    "lavaca",
+    "limestone",
+    "llano",
+    "matagorda",
+    "maverick",
+    "medina",
+    "milam",
+    "montague",
+    "moore",
+    "nacogdoches",
+    "navarro",
+    "palopinto",
+    "panola",
+    "randall",
+    "rockwall",
+    "rusk",
+    "sanjacinto",
+    "shelby",
+    "starr",
+    "titus",
+    "tyler",
+    "upshur",
+    "uvalde",
+    "valverde",
+    "vanzandt",
+    "walker",
+    "waller",
+    "washington",
+    "wharton",
+    "willacy",
+    "wilson",
+    "wise",
+    "wood",
+    "young",
+]
+
+wa_counties_dropped = ["franklin"]
+
 
 def pre_post_fl_cleaned():
     """make pre-post viz for Florida"""
@@ -223,7 +576,6 @@ def diff_diff_fl_cleaned():
         color="blue",
     )
 
-    # Now do the control states ["DE", "NV", "TN"]
     df = table.to_pandas()
 
     # Filter data for the specified states
@@ -721,10 +1073,265 @@ def diff_diff_tx_cleaned():
     plt.show()
 
 
+# add paremerterized functions
+def generate_pre_post_viz(
+    state, start_pre, end_pre, start_post, end_post, policy_year, pre_color, post_color
+):
+    """Generate pre-post visualization for a given state."""
+    table = pq.read_table(opiod_pop_path)
+    df = table.to_pandas()
+    df_state = df[df["State"] == state]
+    df_state["Opioid per capita"] = df_state["MME"] / df_state["Population"]
+
+    # grab pre and post intervention
+    pre_period = df_state[(df_state["Year"] < end_pre) & (df_state["Year"] > start_pre)]
+    post_period = df_state[
+        (df_state["Year"] >= start_post) & (df_state["Year"] < end_post)
+    ]
+
+    pre_period.sort_values(by="Year", inplace=True)
+    post_period.sort_values(by="Year", inplace=True)
+
+    # Create a design matrix
+    X_pre = sm.add_constant(pre_period["Year"])
+    model_pre = sm.OLS(pre_period["Opioid per capita"], X_pre)
+    results_pre = model_pre.fit()
+    model_predict_pre = results_pre.get_prediction(X_pre)
+
+    pre_period["predicted_opiod_per_cap"] = model_predict_pre.summary_frame()["mean"]
+    pre_period[["ci_low", "ci_high"]] = model_predict_pre.conf_int(alpha=0.05)
+
+    X_post = sm.add_constant(post_period["Year"])
+    model_post = sm.OLS(post_period["Opioid per capita"], X_post)
+    results_post = model_post.fit()
+    model_predict_post = results_post.get_prediction(X_post)
+
+    post_period["predicted_opiod_per_cap"] = model_predict_post.summary_frame()["mean"]
+    post_period[["ci_low", "ci_high"]] = model_predict_post.conf_int(alpha=0.05)
+
+    fig, ax = plt.subplots()
+    ax.plot(
+        pre_period["Year"],
+        pre_period["predicted_opiod_per_cap"],
+        label=f"{state} Pre-Policy",
+        color=pre_color,
+    )
+    ax.plot(
+        post_period["Year"],
+        post_period["predicted_opiod_per_cap"],
+        label=f"{state} Post-Policy",
+        color=post_color,
+    )
+    ax.fill_between(
+        pre_period["Year"],
+        pre_period["ci_low"],
+        pre_period["ci_high"],
+        alpha=0.2,
+        color=pre_color,
+    )
+    ax.fill_between(
+        post_period["Year"],
+        post_period["ci_low"],
+        post_period["ci_high"],
+        alpha=0.2,
+        color=post_color,
+    )
+
+    ax.axvline(x=policy_year, color="black", linestyle="--")
+
+    ax.set_xlabel("Year")
+    ax.set_ylabel("Opioid (MME) per Capita")
+    ax.set_title(f"{state} Average Opioid per Capita Shipments")
+    ax.legend(loc="upper left")
+    ax.set_xlim(
+        min(pre_period["Year"].min(), post_period["Year"].min()),
+        max(pre_period["Year"].max(), post_period["Year"].max()),
+    )
+    plt.savefig(f"../30_results/{state.lower()}_pre_post.png")
+    plt.show()
+
+
+def generate_diff_diff_viz(
+    treated_state,
+    control_states,
+    start_pre,
+    end_pre,
+    start_post,
+    end_post,
+    policy_year,
+    treated_color,
+    control_color,
+):
+    """Generate difference-in-differences visualization."""
+    table = pq.read_table(opiod_pop_path)
+    df = table.to_pandas()
+
+    # Treated State
+    df_treated = df[df["State"] == treated_state]
+    df_treated["Opioid per capita"] = df_treated["MME"] / df_treated["Population"]
+
+    treated_pre = df_treated[
+        (df_treated["Year"] < end_pre) & (df_treated["Year"] > start_pre)
+    ]
+    treated_post = df_treated[
+        (df_treated["Year"] >= start_post) & (df_treated["Year"] < end_post)
+    ]
+    treated_pre.sort_values(by="Year", inplace=True)
+    treated_post.sort_values(by="Year", inplace=True)
+
+    X_treated_pre = sm.add_constant(treated_pre["Year"])
+    model_treated_pre = sm.OLS(treated_pre["Opioid per capita"], X_treated_pre)
+    results_treated_pre = model_treated_pre.fit()
+    model_predict_treated_pre = results_treated_pre.get_prediction(X_treated_pre)
+
+    treated_pre["predicted_opiod_per_cap"] = model_predict_treated_pre.summary_frame()[
+        "mean"
+    ]
+    treated_pre[["ci_low", "ci_high"]] = model_predict_treated_pre.conf_int(alpha=0.05)
+
+    X_treated_post = sm.add_constant(treated_post["Year"])
+    model_treated_post = sm.OLS(treated_post["Opioid per capita"], X_treated_post)
+    results_treated_post = model_treated_post.fit()
+    model_predict_treated_post = results_treated_post.get_prediction(X_treated_post)
+
+    treated_post[
+        "predicted_opiod_per_cap"
+    ] = model_predict_treated_post.summary_frame()["mean"]
+    treated_post[["ci_low", "ci_high"]] = model_predict_treated_post.conf_int(
+        alpha=0.05
+    )
+
+    # Control States
+    df_control = df[df["State"].isin(control_states)]
+    df_control["Opioid per capita"] = df_control["MME"] / df_control["Population"]
+
+    control_pre = df_control[
+        (df_control["Year"] < end_pre) & (df_control["Year"] > start_pre)
+    ]
+    control_post = df_control[
+        (df_control["Year"] >= start_post) & (df_control["Year"] < end_post)
+    ]
+    control_pre.sort_values(by="Year", inplace=True)
+    control_post.sort_values(by="Year", inplace=True)
+
+    X_control_pre = sm.add_constant(control_pre["Year"])
+    model_control_pre = sm.OLS(control_pre["Opioid per capita"], X_control_pre)
+    results_control_pre = model_control_pre.fit()
+    model_predict_control_pre = results_control_pre.get_prediction(X_control_pre)
+
+    control_pre["predicted_opiod_per_cap"] = model_predict_control_pre.summary_frame()[
+        "mean"
+    ]
+    control_pre[["ci_low", "ci_high"]] = model_predict_control_pre.conf_int(alpha=0.05)
+
+    X_control_post = sm.add_constant(control_post["Year"])
+    model_control_post = sm.OLS(control_post["Opioid per capita"], X_control_post)
+    results_control_post = model_control_post.fit()
+    model_predict_control_post = results_control_post.get_prediction(X_control_post)
+
+    control_post[
+        "predicted_opiod_per_cap"
+    ] = model_predict_control_post.summary_frame()["mean"]
+    control_post[["ci_low", "ci_high"]] = model_predict_control_post.conf_int(
+        alpha=0.05
+    )
+
+    fig, ax = plt.subplots()
+
+    treated_patch = mpatches.Patch(
+        color=treated_color, label=f"{treated_state} - Treated"
+    )
+    control_patch = mpatches.Patch(color=control_color, label="Control States")
+
+    ax.plot(
+        treated_pre["Year"],
+        treated_pre["predicted_opiod_per_cap"],
+        label=f"{treated_state} Pre-Policy",
+        color=treated_color,
+    )
+    ax.plot(
+        treated_post["Year"],
+        treated_post["predicted_opiod_per_cap"],
+        label=f"{treated_state} Post-Policy",
+        color=treated_color,
+    )
+    ax.fill_between(
+        treated_pre["Year"],
+        treated_pre["ci_low"],
+        treated_pre["ci_high"],
+        alpha=0.2,
+        color=treated_color,
+    )
+    ax.fill_between(
+        treated_post["Year"],
+        treated_post["ci_low"],
+        treated_post["ci_high"],
+        alpha=0.2,
+        color=treated_color,
+    )
+
+    ax.plot(
+        control_pre["Year"],
+        control_pre["predicted_opiod_per_cap"],
+        color=control_color,
+    )
+    ax.plot(
+        control_post["Year"],
+        control_post["predicted_opiod_per_cap"],
+        color=control_color,
+    )
+    ax.fill_between(
+        control_pre["Year"],
+        control_pre["ci_low"],
+        control_pre["ci_high"],
+        alpha=0.2,
+        color=control_color,
+    )
+    ax.fill_between(
+        control_post["Year"],
+        control_post["ci_low"],
+        control_post["ci_high"],
+        alpha=0.2,
+        color=control_color,
+    )
+
+    ax.axvline(x=policy_year, color="black", linestyle="--")
+
+    ax.set_xlabel("Year")
+    ax.set_ylabel("Opioid (MME) per Capita")
+    ax.set_title("Difference-in-Differences Analysis")
+    ax.legend(handles=[treated_patch, control_patch], loc="upper left")
+
+    ax.set_xlim(
+        min(treated_pre["Year"].min(), treated_post["Year"].min()),
+        max(treated_pre["Year"].max(), treated_post["Year"].max()),
+    )
+    plt.savefig(f"../30_results/diff_diff_{treated_state.lower()}.png")
+    plt.show()
+
+
 if __name__ == "__main__":
     # pre_post_fl_cleaned()
     # pre_post_wa_cleaned()
     # diff_diff_fl_cleaned()
     # diff_diff_wa_cleaned()
     # pre_post_tx_cleaned()
-    diff_diff_tx_cleaned()
+    # diff_diff_tx_cleaned()
+    generate_pre_post_viz("FL", 2006, 2010, 2010, 2013, 2010, "blue", "orange")
+    generate_diff_diff_viz(
+        "WA", ["OH", "MI", "ME", "HI"], 2002, 2012, 2012, 2015, 2012, "blue", "orange"
+    )
+    generate_diff_diff_viz(
+        "FL",
+        ["KY", "WV", "TN", "NV", "OR"],
+        2006,
+        2010,
+        2010,
+        2013,
+        2010,
+        "blue",
+        "orange",
+    )
+    generate_diff_diff_viz(
+        "WA", ["OH", "MI", "ME", "HI"], 2002, 2012, 2012, 2015, 2012, "blue", "orange"
+    )
