@@ -1,6 +1,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
+import matplotlib.patches as mpatches
 import statsmodels.api as sm
 import numpy as np
 
@@ -192,17 +193,17 @@ def plot_pre_post_ols(df, state_code, policy_year):
     model_post = sm.OLS(y_post, X_post)
     results_post = model_post.fit()
 
-    plt.figure(figsize=(8, 6))
+    fig, ax = plt.subplots(figsize=(8, 6))
     # Confidence interval bands for Pre-2010
     pred_pre = results_pre.get_prediction(X_pre)
     pred_pre_ci = pred_pre.conf_int()
-    plt.plot(
+    ax.plot(
         pre_policy["YEAR"],
         results_pre.predict(X_pre),
         color="blue",
         label=(f"Pre-{policy_year} OLS"),
     )
-    plt.fill_between(
+    ax.fill_between(
         pre_policy["YEAR"],
         pred_pre_ci[:, 0],
         pred_pre_ci[:, 1],
@@ -213,31 +214,35 @@ def plot_pre_post_ols(df, state_code, policy_year):
     # Confidence interval bands for Post-2010
     pred_post = results_post.get_prediction(X_post)
     pred_post_ci = pred_post.conf_int()
-    plt.plot(
+    ax.plot(
         post_policy["YEAR"],
         results_post.predict(X_post),
         color="orange",
         label=(f"Post-{policy_year} OLS"),
     )
-    plt.fill_between(
+    ax.fill_between(
         post_policy["YEAR"],
         pred_post_ci[:, 0],
         pred_post_ci[:, 1],
         color="orange",
         alpha=0.3,
     )
-    plt.axvline(
+    ax.axvline(
         x=policy_year, color="black", linestyle="--", label=(f"Year {policy_year}")
     )
 
-    plt.xlabel("Year")
-    plt.ylabel("Percentage (%) of Population that died by opioids")
-    plt.title(
+    ax.set_xlabel("Year")
+    ax.set_ylabel("Percentage (%) of Population that died by opioids")
+    ax.set_title(
         f"Percentage (%) of Population that died by opioids in Washington (Pre and Post {policy_year})"
     )
     formatter = mtick.FuncFormatter(format_percent)
-    plt.gca().yaxis.set_major_formatter(formatter)
-    plt.legend()
+    ax.yaxis.set_major_formatter(formatter)
+    ax.legend()
+    ax.set_xlim(
+        min(pre_policy["YEAR"].min(), post_policy["YEAR"].min()),
+        max(pre_policy["YEAR"].max(), post_policy["YEAR"].max()),
+    )
     plt.tight_layout()
     plt.show()
     pre_policy_mean = pre_policy["Death_Rate"].mean()
@@ -287,18 +292,16 @@ def plot_diff_in_diff(treatment_df, control_df, policy_year):
     y_control_post = control_post_policy["Death_Rate"]
     model_control_post = sm.OLS(y_control_post, X_control_post)
     results_control_post = model_control_post.fit()
-
-    plt.figure(figsize=(8, 6))
+    fig, ax = plt.subplots(figsize=(8, 6))
     # Confidence interval bands for Pre-2010
     pred_treatment_pre = results_treatment_pre.get_prediction(X_treatment_pre)
     pred_treatment_pre_ci = pred_treatment_pre.conf_int()
-    plt.plot(
+    ax.plot(
         treatment_pre_policy["YEAR"],
         results_treatment_pre.predict(X_treatment_pre),
         color="blue",
-        label=(f"Treatment State: WA"),
     )
-    plt.fill_between(
+    ax.fill_between(
         treatment_pre_policy["YEAR"],
         pred_treatment_pre_ci[:, 0],
         pred_treatment_pre_ci[:, 1],
@@ -308,13 +311,12 @@ def plot_diff_in_diff(treatment_df, control_df, policy_year):
 
     pred_control_pre = results_control_pre.get_prediction(X_control_pre)
     pred_control_pre_ci = pred_control_pre.conf_int()
-    plt.plot(
+    ax.plot(
         control_pre_policy["YEAR"],
         results_control_pre.predict(X_control_pre),
         color="orange",
-        label=(f"Control States: OH, MI, ME, HI"),
     )
-    plt.fill_between(
+    ax.fill_between(
         control_pre_policy["YEAR"],
         pred_control_pre_ci[:, 0],
         pred_control_pre_ci[:, 1],
@@ -325,12 +327,12 @@ def plot_diff_in_diff(treatment_df, control_df, policy_year):
     # Confidence interval bands for Post-2010
     pred_treatment_post = results_treatment_post.get_prediction(X_treatment_post)
     pred_treatment_post_ci = pred_treatment_post.conf_int()
-    plt.plot(
+    ax.plot(
         treatment_post_policy["YEAR"],
         results_treatment_post.predict(X_treatment_post),
         color="blue",
     )
-    plt.fill_between(
+    ax.fill_between(
         treatment_post_policy["YEAR"],
         pred_treatment_post_ci[:, 0],
         pred_treatment_post_ci[:, 1],
@@ -340,32 +342,47 @@ def plot_diff_in_diff(treatment_df, control_df, policy_year):
 
     pred_control_post = results_control_post.get_prediction(X_control_post)
     pred_control_post_ci = pred_control_post.conf_int()
-    plt.plot(
+    ax.plot(
         control_post_policy["YEAR"],
         results_control_post.predict(X_control_post),
         color="orange",
     )
-    plt.fill_between(
+    ax.fill_between(
         control_post_policy["YEAR"],
         pred_control_post_ci[:, 0],
         pred_control_post_ci[:, 1],
         color="orange",
         alpha=0.3,
     )
-    plt.axvline(
-        x=policy_year, color="black", linestyle="--", label=(f"Year {policy_year}")
-    )
 
-    plt.xlabel("Year")
-    plt.ylabel("Percentage (%) of Population that died by opioids")
-    plt.title(
+    ax.set_xlabel("Year")
+    ax.set_ylabel("Percentage (%) of Population that died by opioids")
+    ax.set_title(
         f"Percentage (%) of Population that died by opioids (Pre and Post {policy_year})"
     )
     formatter = mtick.FuncFormatter(format_percent)
-    plt.gca().yaxis.set_major_formatter(formatter)
-    plt.legend()
+    ax.yaxis.set_major_formatter(formatter)
+
+    orange_patch = mpatches.Patch(
+        color="orange", label="Control States: OH, MI, ME, HI"
+    )
+    blue_patch = mpatches.Patch(color="blue", label="Treatment State: WA")
+    plt.legend(handles=[orange_patch, blue_patch], loc="upper left")
+    ax.axvline(x=policy_year, color="black", linestyle="--")
+
+    ax.set_xlim(
+        min(
+            min(treatment_pre_policy["YEAR"].min(), control_pre_policy["YEAR"].min()),
+            min(treatment_post_policy["YEAR"].min(), control_post_policy["YEAR"].min()),
+        ),
+        max(
+            max(treatment_pre_policy["YEAR"].max(), control_pre_policy["YEAR"].max()),
+            max(treatment_post_policy["YEAR"].max(), control_post_policy["YEAR"].max()),
+        ),
+    )
     plt.tight_layout()
     plt.show()
+
     treatment_pre_change = treatment_pre_policy["Death_Rate"].mean()
     treatment_post_change = treatment_post_policy["Death_Rate"].mean()
     control_pre_change = control_pre_policy["Death_Rate"].mean()
@@ -395,11 +412,13 @@ wa_mort, o = process_mortality_data("../00_data/mortality_final.csv", "TX")
 wa_pop = process_population_data("../00_data/PopFips.csv", "TX")
 clean_county(wa_mort)
 clean_county(wa_pop)
-wa_pop_mort = merge_mortality_population(wa_pop, wa_mort, 2003, 2015)
+wa_pop_mort = merge_mortality_population(wa_pop, wa_mort, 2002, 2012)
 # print(check_unique_counties_per_year(wa_pop_mort, wa_pop))
-# some_null_counties, all_null_counties, no_null_counties = get_death_null_counties(
-#     wa_pop_mort
-# )
+some_null_counties, all_null_counties, no_null_counties = get_death_null_counties(
+    wa_pop_mort
+)
+print(all_null_counties)
+print_county_population(all_null_counties, wa_pop_mort)
 # find_mismatched_counties(wa_pop_mort)
 imputed_wa_pop_mort = impute_for_mortality(wa_pop_mort)
 
@@ -409,7 +428,9 @@ imputed_wa_pop_mort = impute_for_mortality(wa_pop_mort)
 wa_controls_mort, o = process_mortality_data(
     "../00_data/mortality_final.csv", ["MO", "MN", "MR"]
 )
-wa_controls_pop = process_population_data("../00_data/PopFips.csv", ["MO", "MN", "MR"])
+wa_controls_pop = process_population_data(
+    "../00_data/PopFips.csv", ["OH", "MI", "ME", "HI"]
+)
 clean_county(wa_controls_mort)
 clean_county(wa_controls_pop)
 wa_controls_pop_mort = merge_mortality_population(
