@@ -1,3 +1,11 @@
+"""
+The following libraries are required to run this script:
+- pandas for data manipulation
+- matplotlib for plotting
+- statsmodels for statistical analysis
+- numpy for numerical analysis
+"""
+
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
@@ -26,7 +34,7 @@ def process_mortality_data(csv_path, state_codes=None):
     return mortality_data, observations_per_county_year
 
 
-def process_population_data(csv_path, state_codes=None):
+def process_population_data(csv_path, state_codes=None, population_threshold=65000):
     population_data = pd.read_csv(csv_path)
     population_data.rename(columns={"CTYNAME": "County", "Year": "YEAR"}, inplace=True)
     population_data["County"] = population_data["County"].str.upper()
@@ -43,11 +51,19 @@ def process_population_data(csv_path, state_codes=None):
     median_population = state_pop_data.groupby("County")["Population"].median()
 
     # Calculate proportion of counties above 65,000
-    prop_above_threshold = (
-        mean_population > 65000
-    ).mean()  # Proportion of counties above 65,000
+    """
+    This following threshold was determined by looking at the data censoring method used by ACS. 
+    This reverts to the median in case the proportion of counties below 65,000 is more than 0.5 
+    to ensure that we have a large enough sample size to analyse. 
+    """
+    prop_above_threshold = (mean_population > population_threshold).mean()
 
-    threshold = 65000 if prop_above_threshold > 0.5 else median_population.median()
+    # Use the provided threshold for filtering population data
+    threshold = (
+        population_threshold
+        if prop_above_threshold > 0.5
+        else median_population.median()
+    )
 
     # Filter population data based on the determined threshold
     filtered_pop_data = state_pop_data[
@@ -56,18 +72,18 @@ def process_population_data(csv_path, state_codes=None):
     return filtered_pop_data
 
 
-def clean_county(df):
-    df["County"] = df["County"].str.lower()
-    df["County"] = df["County"].str.replace(" parish", "")
-    df["County"] = df["County"].str.replace("parish", "")
-    df["County"] = df["County"].str.replace(" county", "")
-    df["County"] = df["County"].str.replace("st.", "saint")
-    df["County"] = df["County"].str.replace("st ", "saint")
-    df["County"] = df["County"].str.replace("ste.", "sainte")
-    df["County"] = df["County"].str.replace(" ", "")
-    df["County"] = df["County"].str.replace("-", "")
-    df["County"] = df["County"].str.replace("'", "")
-    return df
+def clean_county(unclean_df):
+    unclean_df["County"] = unclean_df["County"].str.lower()
+    unclean_df["County"] = unclean_df["County"].str.replace(" parish", "")
+    unclean_df["County"] = unclean_df["County"].str.replace("parish", "")
+    unclean_df["County"] = unclean_df["County"].str.replace(" county", "")
+    unclean_df["County"] = unclean_df["County"].str.replace("st.", "saint")
+    unclean_df["County"] = unclean_df["County"].str.replace("st ", "saint")
+    unclean_df["County"] = unclean_df["County"].str.replace("ste.", "sainte")
+    unclean_df["County"] = unclean_df["County"].str.replace(" ", "")
+    unclean_df["County"] = unclean_df["County"].str.replace("-", "")
+    unclean_df["County"] = unclean_df["County"].str.replace("'", "")
+    return unclean_df
 
 
 def merge_mortality_population(population_data, mortality_data, start_year, end_year):
@@ -77,6 +93,9 @@ def merge_mortality_population(population_data, mortality_data, start_year, end_
     )
     # Filtering for specific years related to mortality data
     filtered_data = merged_data[merged_data["YEAR"].between(start_year, end_year)]
+    # After the merge operation
+    assert merged_data["YEAR"].notnull().all()
+    assert merged_data["County"].notnull().all()
     return filtered_data
 
 
