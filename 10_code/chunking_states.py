@@ -1,8 +1,9 @@
 """grabs all the states and pareses them into individual parquet files"""
 import pandas as pd
 
-input_file = "../00_data/arcos_all_washpost.tsv"
+input_file = "../00_data/arcos_all_washpost.zip"
 output_dir = "../00_data/states/"
+pd.set_option("display.precision", 5)  #
 
 """pre defined states list"""
 STATES = [
@@ -91,7 +92,8 @@ def process_state(state, chunks):
         if not state_chunk.empty:
             state_df.append(state_chunk)
             print(i)
-            # print(state_df)
+            print(state_chunk.dtypes)
+            print(min(state_chunk["MME"].tolist()))
     # grabs all relevant rows related to the searched state
     pd.concat(state_df, ignore_index=True).to_parquet(
         output_dir + state + ".parquet", index=False
@@ -108,10 +110,12 @@ def grab_states(chunks):
 
 
 if __name__ == "__main__":
-    path = "../00_data/arcos_all_washpost.tsv"
+    path = "../00_data/arcos_all_washpost.zip"
 
-    for i in STATES:
+    for i in ["FL"]:
         print(i)
         # need to read this again to remake iterator
-        chunks = pd.read_table(path, chunksize=10000000, low_memory=False)
+        chunks = pd.read_table(
+            path, chunksize=10000000, low_memory=False, compression="zip"
+        )
         process_state(i, chunks)
