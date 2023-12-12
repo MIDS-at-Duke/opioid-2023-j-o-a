@@ -1241,7 +1241,8 @@ def generate_diff_diff_viz(
     treated_patch = mpatches.Patch(
         color=treated_color, label=f"{treated_state} - Treated"
     )
-    control_patch = mpatches.Patch(color=control_color, label="Control States")
+    control_string = ", ".join(control_states)
+    control_patch = mpatches.Patch(color=control_color, label=str(control_string))
 
     ax.plot(
         treated_pre["Year"],
