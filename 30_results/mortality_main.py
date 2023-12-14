@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
 import matplotlib.patches as mpatches
 import statsmodels.api as sm
+from sklearn.linear_model import LinearRegression
 import numpy as np
 
 
@@ -27,9 +28,6 @@ def process_mortality_data(csv_path, state_codes=None):
     mortality_data["County"] = mortality_data["County"].str.replace(" COUNTY", "")
     mortality_data.rename(columns={"Year": "YEAR"}, inplace=True)
     mortality_data["Deaths"] = pd.to_numeric(mortality_data["Deaths"], errors="coerce")
-
-    # Assuming 'Deaths' represent total drug-related deaths, calculate 75% of them as opioid-related
-    mortality_data["Deaths"] = mortality_data["Deaths"] * 0.75
     observations_per_county_year = mortality_data.groupby(["County", "YEAR"]).size()
     return mortality_data, observations_per_county_year
 
@@ -46,29 +44,22 @@ def process_population_data(csv_path, state_codes=None, population_threshold=650
             state_pop_data = population_data[population_data["STATE"].isin(state_codes)]
         else:
             state_pop_data = population_data[population_data["STATE"] == state_codes]
-    # Calculate mean and median population per county
-    mean_population = state_pop_data.groupby("County")["Population"].mean()
-    median_population = state_pop_data.groupby("County")["Population"].median()
 
-    # Calculate proportion of counties above 65,000
-    """
-    This following threshold was determined by looking at the data censoring method used by ACS. 
-    This reverts to the median in case the proportion of counties below 65,000 is more than 0.5 
-    to ensure that we have a large enough sample size to analyse. 
-    """
-    prop_above_threshold = (mean_population > population_threshold).mean()
+    # Printing total number of unique counties before threshold filtering
+    pre_threshold_counties = state_pop_data["County"].nunique()
+    print(f"Number of counties before threshold filtering: {pre_threshold_counties}")
 
-    # Use the provided threshold for filtering population data
-    threshold = (
-        population_threshold
-        if prop_above_threshold > 0.5
-        else median_population.median()
-    )
+    # Change threshold based on findings from check_missing_death_values and determine_population_cutoff
+    threshold = 45000
 
     # Filter population data based on the determined threshold
     filtered_pop_data = state_pop_data[
         state_pop_data.groupby("County")["Population"].transform("mean") > threshold
     ]
+
+    # Printing total number of unique counties after threshold filtering
+    post_threshold_counties = filtered_pop_data["County"].nunique()
+    print(f"Number of counties after threshold filtering: {post_threshold_counties}")
     return filtered_pop_data
 
 
@@ -97,6 +88,67 @@ def merge_mortality_population(population_data, mortality_data, start_year, end_
     assert merged_data["YEAR"].notnull().all()
     assert merged_data["County"].notnull().all()
     return filtered_data
+
+
+# To check for missing death values against population for counties
+def check_missing_death_values(merged_data):
+    list_for_graph = []
+    chunk_start = []
+
+    max_population = merged_data["Population"].max()
+
+    # Creating a loop that subsets the merged data by population bins and then calculates the number of counties with no data for all years in that bin
+    for i in range(0, max_population, 5000):
+        chunk = merged_data[merged_data["Population"].between(i, max_population)]
+        nan_counts = chunk.groupby("County")["Deaths"].apply(lambda x: x.isnull().sum())
+        all_null_counties = nan_counts[
+            nan_counts == len(chunk["YEAR"].unique())
+        ].index.tolist()
+        chunk_start.append(i)
+        list_for_graph.append(
+            len(all_null_counties)
+        )  # Store the length instead of the list
+    # Plotting the data
+    plt.figure(figsize=(10, 6))
+    plt.plot(chunk_start, list_for_graph, marker="o", linestyle="-")
+    plt.xlabel("Moving Threshold for Population")
+    plt.ylabel("Number of Counties with No Data for All Years")
+    plt.title("Counties with No Data vs. Moving Population Threshold for Texas")
+    plt.grid(True)
+
+    # Customize the plot
+    plt.tight_layout()  # Adjust the spacing between subplots
+    plt.tick_params(axis="both", which="both", direction="in", top=True, right=True)
+    plt.minorticks_on()
+    plt.grid(which="both", linestyle="--", linewidth=0.5, alpha=0.5)
+
+    plt.show()
+
+
+def check_metrics_for_threshold(data, threshold):
+    # Filter the data for the specific population threshold
+    threshold_data = data[data["Population"] >= threshold]
+
+    # Calculate correlation between population and missingness
+    correlation = threshold_data["Population"].corr(
+        threshold_data["Deaths"].isnull().astype(int)
+    )
+
+    # Calculate missingness percentage for the specified threshold
+    missingness_percentage = threshold_data["Deaths"].isnull().mean()
+
+    # Calculate information loss for the specified threshold
+    initial_sample_size = len(data)
+    sample_size_threshold = len(threshold_data)
+    information_loss = (
+        initial_sample_size - sample_size_threshold
+    ) / initial_sample_size
+
+    return {
+        "correlation": correlation,
+        "missingness_percentage": missingness_percentage,
+        "information_loss": information_loss,
+    }
 
 
 def find_mismatched_counties(merged_data):
@@ -164,14 +216,27 @@ def impute_for_mortality(pop_mortality_data):
     pop_mortality_data["Death_Rate"] = (
         pop_mortality_data["Deaths"] / pop_mortality_data["Population"]
     )
+
     # Calculate mean Death Rate for each county
     county_means = pop_mortality_data.groupby("County")["Death_Rate"].mean()
+
+    # Track counties that received imputed values and their initial death count
+    imputed_counties = []
+
     # Fill missing Death Rate values using each county's mean
     for county, mean_rate in county_means.items():
         mask = (pop_mortality_data["County"] == county) & (
             pop_mortality_data["Death_Rate"].isnull()
         )
-        pop_mortality_data.loc[mask, "Death_Rate"] = mean_rate
+        county_data = pop_mortality_data.loc[mask]
+
+        if not county_data.empty:
+            original_deaths = county_data[
+                "Deaths"
+            ].count()  # Total number of observations with death values
+            pop_mortality_data.loc[mask, "Death_Rate"] = mean_rate
+            imputed_counties.append((county, original_deaths))
+
     # Drop all counties that have ALL null values
     all_null_counties = pop_mortality_data.groupby("County")["Death_Rate"].apply(
         lambda x: x.isnull().all()
@@ -181,9 +246,11 @@ def impute_for_mortality(pop_mortality_data):
     pop_mortality_data = pop_mortality_data[
         ~pop_mortality_data["County"].isin(dropped_counties)
     ]
-    # pop_mortality_data["Deaths_Revised"] = (
-    #     pop_mortality_data["Death_Rate"] * pop_mortality_data["Population"]
-    # )
+
+    # print("\nCounties receiving imputed values:")
+    for county, original_deaths in imputed_counties:
+        print(f"{county}: Original Deaths - {original_deaths}")
+
     return pop_mortality_data
 
 
@@ -251,11 +318,11 @@ def plot_pre_post_ols(df, state_code, policy_year):
     )
 
     ax.set_xlabel("Year")
-    ax.set_ylabel("Percentage (%) of Population that died by opioids")
+    ax.set_ylabel("Number of deaths per 100,000 that died by opioids")
     ax.set_title(
-        f"Percentage (%) of Population that died by opioids in Washington (Pre and Post {policy_year})"
+        f"Number of deaths by opioids per 100,000 in Washington (Pre and Post {policy_year})"
     )
-    formatter = mtick.FuncFormatter(format_percent)
+    formatter = mtick.FuncFormatter(lambda x, pos: f"{x * 100000:.0f}")
     ax.yaxis.set_major_formatter(formatter)
     ax.legend()
     ax.set_xlim(
@@ -287,6 +354,7 @@ def plot_diff_in_diff(treatment_df, control_df, policy_year):
     control_pre_policy = control_df[
         (control_df["YEAR"] >= policy_year - limit) & (control_df["YEAR"] < policy_year)
     ]
+    # policy_year - limit
     control_post_policy = control_df[
         (control_df["YEAR"] >= policy_year)
         & (control_df["YEAR"] <= policy_year + limit)
@@ -375,11 +443,11 @@ def plot_diff_in_diff(treatment_df, control_df, policy_year):
     )
 
     ax.set_xlabel("Year")
-    ax.set_ylabel("Percentage (%) of Population that died by opioids")
+    ax.set_ylabel("Number of deaths per 100,000 that died by opioids")
     ax.set_title(
-        f"Percentage (%) of Population that died by opioids (Pre and Post {policy_year})"
+        f"Number of deaths by opioids per 100,000 (Pre and Post {policy_year})"
     )
-    formatter = mtick.FuncFormatter(format_percent)
+    formatter = mtick.FuncFormatter(lambda x, pos: f"{x * 100000:.0f}")
     ax.yaxis.set_major_formatter(formatter)
 
     orange_patch = mpatches.Patch(
@@ -402,16 +470,22 @@ def plot_diff_in_diff(treatment_df, control_df, policy_year):
     plt.tight_layout()
     plt.show()
 
-    treatment_pre_change = treatment_pre_policy["Death_Rate"].mean()
-    treatment_post_change = treatment_post_policy["Death_Rate"].mean()
-    control_pre_change = control_pre_policy["Death_Rate"].mean()
-    control_post_change = control_post_policy["Death_Rate"].mean()
+    population_factor = 100000
+
+    treatment_pre_change = (
+        treatment_pre_policy["Death_Rate"].mean()
+    ) * population_factor
+    treatment_post_change = (
+        treatment_post_policy["Death_Rate"].mean()
+    ) * population_factor
+    control_pre_change = (control_pre_policy["Death_Rate"].mean()) * population_factor
+    control_post_change = (control_post_policy["Death_Rate"].mean()) * population_factor
+
     did_treatment = (
-        (treatment_post_change - treatment_pre_change) / treatment_pre_change
-    ) * 100
-    did_control = (
-        (control_post_change - control_pre_change) / control_pre_change
-    ) * 100
+        treatment_post_change - treatment_pre_change
+    ) / treatment_pre_change
+    did_control = (control_post_change - control_pre_change) / control_pre_change
+
     # Calculate the Difference in Differences
     diff_in_diff = did_treatment - did_control
 
@@ -427,40 +501,43 @@ def plot_diff_in_diff(treatment_df, control_df, policy_year):
 
 
 # For Washington
-wa_mort, o = process_mortality_data("../00_data/mortality_final.csv", "TX")
-wa_pop = process_population_data("../00_data/PopFips.csv", "TX")
+wa_mort, o = process_mortality_data("../00_data/mortality_final.csv", "FL")
+wa_pop = process_population_data("../00_data/PopFips.csv", "FL")
 clean_county(wa_mort)
 clean_county(wa_pop)
-wa_pop_mort = merge_mortality_population(wa_pop, wa_mort, 2002, 2012)
+wa_pop_mort = merge_mortality_population(wa_pop, wa_mort, 2003, 2015)
+# check_missing_death_values(wa_pop_mort)
+r = check_metrics_for_threshold(wa_pop_mort, 40000)
+print(r)
 # print(check_unique_counties_per_year(wa_pop_mort, wa_pop))
 some_null_counties, all_null_counties, no_null_counties = get_death_null_counties(
     wa_pop_mort
 )
-print(all_null_counties)
-print_county_population(all_null_counties, wa_pop_mort)
+# print(all_null_counties)
+# print_county_population(all_null_counties, wa_pop_mort)
 # find_mismatched_counties(wa_pop_mort)
-imputed_wa_pop_mort = impute_for_mortality(wa_pop_mort)
+# imputed_wa_pop_mort = impute_for_mortality(wa_pop_mort)
 
 # print(wa_pop_mort["Deaths"].isnull().sum())
 # print(imputed_wa_pop_mort["Death_Rate"].isnull().sum())
 
-wa_controls_mort, o = process_mortality_data(
-    "../00_data/mortality_final.csv", ["MO", "MN", "MR"]
-)
-wa_controls_pop = process_population_data(
-    "../00_data/PopFips.csv", ["OH", "MI", "ME", "HI"]
-)
-clean_county(wa_controls_mort)
-clean_county(wa_controls_pop)
-wa_controls_pop_mort = merge_mortality_population(
-    wa_controls_pop, wa_controls_mort, 2003, 2015
-)
-imputed_wa_controls = impute_for_mortality(wa_controls_pop_mort)
-print(wa_controls_pop_mort["Deaths"].isnull().sum())
-print(imputed_wa_controls["Death_Rate"].isnull().sum())
+# wa_controls_mort, o = process_mortality_data(
+#     "../00_data/mortality_final.csv", ["OH", "MI", "ME", "HI"]
+# )
+# wa_controls_pop = process_population_data(
+#     "../00_data/PopFips.csv", ["OH", "MI", "ME", "HI"]
+# )
+# clean_county(wa_controls_mort)
+# clean_county(wa_controls_pop)
+# wa_controls_pop_mort = merge_mortality_population(
+#     wa_controls_pop, wa_controls_mort, 2003, 2015
+# )
+# imputed_wa_controls = impute_for_mortality(wa_controls_pop_mort)
+# print(wa_controls_pop_mort["Deaths"].isnull().sum())
+# print(imputed_wa_controls["Death_Rate"].isnull().sum())
 
-# plot_pre_post_ols(imputed_wa_pop_mort, "FL", 2010)
-plot_diff_in_diff(imputed_wa_pop_mort, imputed_wa_controls, 2007)
+# plot_pre_post_ols(imputed_wa_pop_mort, "WA", 2012)
+# plot_diff_in_diff(imputed_wa_pop_mort, imputed_wa_controls, 2012)
 
 
 def calculate_slope(df):
