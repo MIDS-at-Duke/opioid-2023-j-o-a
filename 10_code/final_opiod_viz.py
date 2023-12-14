@@ -7,362 +7,12 @@ import statsmodels.api as sm
 import operator
 import seaborn.objects as so
 import matplotlib.patches as mpatches
+import warnings
+
+warnings.filterwarnings("ignore")
 
 opiod_pop_path = "../00_data/opioid_pop_clean.parquet"
 opiod_pop_month_path = "../00_data/opioid_pop_months_clean.parquet"
-
-fl_control_counties_dropped = [
-    "anderson",
-    "barren",
-    "bedford",
-    "bell",
-    "benton",
-    "berkeley",
-    "blount",
-    "boyd",
-    "boyle",
-    "bradley",
-    "brooke",
-    "bullitt",
-    "cabell",
-    "calloway",
-    "campbell",
-    "carsoncity",
-    "carter",
-    "cheatham",
-    "churchill",
-    "clackamas",
-    "claiborne",
-    "clark",
-    "clatsop",
-    "cocke",
-    "coffee",
-    "columbia",
-    "coos",
-    "cumberland",
-    "davidson",
-    "daviess",
-    "deschutes",
-    "dickson",
-    "douglas",
-    "dyer",
-    "elko",
-    "fayette",
-    "floyd",
-    "gibson",
-    "giles",
-    "graves",
-    "grayson",
-    "greenbrier",
-    "greenup",
-    "hamblen",
-    "hamilton",
-    "hardeman",
-    "hardin",
-    "harlan",
-    "harrison",
-    "hawkins",
-    "henderson",
-    "henry",
-    "hopkins",
-    "jessamine",
-    "josephine",
-    "kanawha",
-    "kenton",
-    "klamath",
-    "knox",
-    "lane",
-    "lauderdale",
-    "laurel",
-    "lawrence",
-    "letcher",
-    "linn",
-    "logan",
-    "loudon",
-    "lyon",
-    "madison",
-    "malheur",
-    "marion",
-    "marshall",
-    "maury",
-    "mccracken",
-    "mcminn",
-    "mcnairy",
-    "meade",
-    "mercer",
-    "mingo",
-    "monongalia",
-    "montgomery",
-    "muhlenberg",
-    "multnomah",
-    "nelson",
-    "nye",
-    "obion",
-    "ohio",
-    "oldham",
-    "pike",
-    "preston",
-    "putnam",
-    "raleigh",
-    "randolph",
-    "rhea",
-    "roane",
-    "robertson",
-    "rutherford",
-    "scott",
-    "sevier",
-    "shelby",
-    "sullivan",
-    "sumner",
-    "tillamook",
-    "tipton",
-    "umatilla",
-    "upshur",
-    "wasco",
-    "washoe",
-    "wayne",
-    "weakley",
-    "white",
-    "whitley",
-    "williamson",
-    "wilson",
-    "wood",
-    "woodford",
-    "yamhill",
-]
-
-tx_control_counties_dropped = [
-    "adair",
-    "audrain",
-    "barry",
-    "becker",
-    "beltrami",
-    "benton",
-    "blueearth",
-    "brown",
-    "callaway",
-    "camden",
-    "carlton",
-    "carver",
-    "chisago",
-    "clinton",
-    "cole",
-    "crawford",
-    "crowwing",
-    "douglas",
-    "fillmore",
-    "freeborn",
-    "goodhue",
-    "henry",
-    "isanti",
-    "itasca",
-    "johnson",
-    "kandiyohi",
-    "laclede",
-    "lafayette",
-    "lawrence",
-    "lesueur",
-    "lyon",
-    "marion",
-    "martin",
-    "mcdonald",
-    "mcleod",
-    "meeker",
-    "millelacs",
-    "miller",
-    "morrison",
-    "mower",
-    "newton",
-    "nicollet",
-    "nobles",
-    "nodaway",
-    "ottertail",
-    "pettis",
-    "pine",
-    "randolph",
-    "ray",
-    "rice",
-    "saline",
-    "scott",
-    "steele",
-    "stoddard",
-    "stone",
-    "taney",
-    "texas",
-    "todd",
-    "vernon",
-    "wabasha",
-    "winona",
-    "wright",
-]
-
-wa_control_counties_dropped = [
-    "allegan",
-    "allen",
-    "androscoggin",
-    "aroostook",
-    "ashland",
-    "ashtabula",
-    "athens",
-    "barry",
-    "bay",
-    "belmont",
-    "berrien",
-    "calhoun",
-    "clark",
-    "clermont",
-    "clinton",
-    "columbiana",
-    "cumberland",
-    "cuyahoga",
-    "darke",
-    "delaware",
-    "eaton",
-    "erie",
-    "fairfield",
-    "geauga",
-    "genesee",
-    "grandtraverse",
-    "hamilton",
-    "hancock",
-    "hawaii",
-    "honolulu",
-    "ingham",
-    "ionia",
-    "isabella",
-    "kalamazoo",
-    "kauai",
-    "kennebec",
-    "kent",
-    "lake",
-    "lapeer",
-    "lawrence",
-    "lenawee",
-    "licking",
-    "livingston",
-    "lorain",
-    "lucas",
-    "macomb",
-    "mahoning",
-    "marion",
-    "marquette",
-    "maui",
-    "medina",
-    "miami",
-    "midland",
-    "monroe",
-    "montcalm",
-    "montgomery",
-    "muskegon",
-    "muskingum",
-    "oakland",
-    "ottawa",
-    "oxford",
-    "penobscot",
-    "pickaway",
-    "portage",
-    "richland",
-    "ross",
-    "saginaw",
-    "saintclair",
-    "saintjoseph",
-    "sandusky",
-    "scioto",
-    "seneca",
-    "shiawassee",
-    "stark",
-    "summit",
-    "trumbull",
-    "tuscarawas",
-    "tuscola",
-    "vanburen",
-    "washtenaw",
-    "wayne",
-    "wood",
-    "york",
-]
-
-tx_counties_dropped = [
-    "angelina",
-    "atascosa",
-    "austin",
-    "bandera",
-    "bastrop",
-    "bee",
-    "bosque",
-    "bowie",
-    "brown",
-    "burnet",
-    "caldwell",
-    "calhoun",
-    "cass",
-    "chambers",
-    "cherokee",
-    "colorado",
-    "coryell",
-    "deafsmith",
-    "dewitt",
-    "eastland",
-    "erath",
-    "fannin",
-    "fayette",
-    "freestone",
-    "gillespie",
-    "gonzales",
-    "gray",
-    "grimes",
-    "hale",
-    "harrison",
-    "hill",
-    "hockley",
-    "hood",
-    "houston",
-    "howard",
-    "hutchinson",
-    "jasper",
-    "jimwells",
-    "jones",
-    "kendall",
-    "kleberg",
-    "lamar",
-    "lampasas",
-    "lavaca",
-    "limestone",
-    "llano",
-    "matagorda",
-    "maverick",
-    "medina",
-    "milam",
-    "montague",
-    "moore",
-    "nacogdoches",
-    "navarro",
-    "palopinto",
-    "panola",
-    "randall",
-    "rockwall",
-    "rusk",
-    "sanjacinto",
-    "shelby",
-    "starr",
-    "titus",
-    "tyler",
-    "upshur",
-    "uvalde",
-    "valverde",
-    "vanzandt",
-    "walker",
-    "waller",
-    "washington",
-    "wharton",
-    "willacy",
-    "wilson",
-    "wise",
-    "wood",
-    "young",
-]
-
-wa_counties_dropped = ["franklin"]
 
 
 def pre_post_fl_cleaned():
@@ -862,18 +512,21 @@ def pre_post_tx_cleaned():
     ax.plot(
         tx_pre["Months since Policy Implmentation"],
         tx_pre["predicted_opiod_per_cap"],
-        label="Pre-Policy",
+        label="TX Pre-Policy",
+        color="blue",
     )
     ax.plot(
         tx_post["Months since Policy Implmentation"],
         tx_post["predicted_opiod_per_cap"],
-        label="Post-Policy",
+        label="TX Post-Policy",
+        color="orange",
     )
 
     ax.fill_between(
         tx_pre["Months since Policy Implmentation"],
         tx_pre["ci_low"],
         tx_pre["ci_high"],
+        color="blue",
         alpha=0.2,
     )
 
@@ -881,6 +534,7 @@ def pre_post_tx_cleaned():
         tx_post["Months since Policy Implmentation"],
         tx_post["ci_low"],
         tx_post["ci_high"],
+        color="orange",
         alpha=0.2,
     )
 
@@ -923,6 +577,10 @@ def diff_diff_tx_cleaned():
 
     tx_pre.sort_values(by="Months since Policy Implmentation", inplace=True)
     tx_post.sort_values(by="Months since Policy Implmentation", inplace=True)
+    print("treated state tx:")
+    mean_opioid_pre = tx_pre["Opioid per capita"].mean()
+    mean_opioid_post = tx_post["Opioid per capita"].mean()
+    print(mean_opioid_pre, mean_opioid_post)
 
     X = sm.add_constant(tx_pre["Months since Policy Implmentation"])
     model = sm.OLS(tx_pre["Opioid per capita"], X)
@@ -943,13 +601,13 @@ def diff_diff_tx_cleaned():
     ax.plot(
         tx_pre["Months since Policy Implmentation"],
         tx_pre["predicted_opiod_per_cap"],
-        label="Pre-Policy",
+        label="TX Pre-Policy",
         color="blue",
     )
     ax.plot(
         tx_post["Months since Policy Implmentation"],
         tx_post["predicted_opiod_per_cap"],
-        label="Post-Policy",
+        label="TX Post-Policy",
         color="blue",
     )
 
@@ -991,7 +649,10 @@ def diff_diff_tx_cleaned():
         (df_selected_states["Months since Policy Implmentation"] >= 0)
         & (df_selected_states["Months since Policy Implmentation"] < 13)
     ]
-
+    print("control state :" + str(states_to_process))
+    mean_ctrl_opioid_pre = control_pre["Opioid per capita"].mean()
+    mean_ctrl_opioid_post = control_post["Opioid per capita"].mean()
+    print(mean_ctrl_opioid_pre, mean_ctrl_opioid_post)
     control_pre.sort_values(by="Months since Policy Implmentation", inplace=True)
     control_post.sort_values(by="Months since Policy Implmentation", inplace=True)
 
@@ -1178,6 +839,10 @@ def generate_diff_diff_viz(
     ]
     treated_pre.sort_values(by="Year", inplace=True)
     treated_post.sort_values(by="Year", inplace=True)
+    print("treated state :" + treated_state)
+    mean_opioid_pre = treated_pre["Opioid per capita"].mean()
+    mean_opioid_post = treated_post["Opioid per capita"].mean()
+    print(mean_opioid_pre, mean_opioid_post)
 
     X_treated_pre = sm.add_constant(treated_pre["Year"])
     model_treated_pre = sm.OLS(treated_pre["Opioid per capita"], X_treated_pre)
@@ -1211,6 +876,11 @@ def generate_diff_diff_viz(
     control_post = df_control[
         (df_control["Year"] >= start_post) & (df_control["Year"] < end_post)
     ]
+
+    print("control state :" + str(control_states))
+    mean_ctrl_opioid_pre = control_pre["Opioid per capita"].mean()
+    mean_ctrl_opioid_post = control_post["Opioid per capita"].mean()
+    print(mean_ctrl_opioid_pre, mean_ctrl_opioid_post)
     control_pre.sort_values(by="Year", inplace=True)
     control_post.sort_values(by="Year", inplace=True)
 
@@ -1247,13 +917,13 @@ def generate_diff_diff_viz(
     ax.plot(
         treated_pre["Year"],
         treated_pre["predicted_opiod_per_cap"],
-        label=f"{treated_state} Pre-Policy",
+        label="Pre-Policy",
         color=treated_color,
     )
     ax.plot(
         treated_post["Year"],
         treated_post["predicted_opiod_per_cap"],
-        label=f"{treated_state} Post-Policy",
+        label="Post-Policy",
         color=treated_color,
     )
     ax.fill_between(
@@ -1314,14 +984,15 @@ def generate_diff_diff_viz(
 if __name__ == "__main__":
     # pre_post_fl_cleaned()
     # pre_post_wa_cleaned()
-    # diff_diff_fl_cleaned()
-    # diff_diff_wa_cleaned()
-    # pre_post_tx_cleaned()
-    # diff_diff_tx_cleaned()
+    diff_diff_fl_cleaned()
+    diff_diff_wa_cleaned()
+    # cannot parmeterize functions for texas as these are month to month viz
+    pre_post_tx_cleaned()
+    diff_diff_tx_cleaned()
+
     generate_pre_post_viz("FL", 2006, 2010, 2010, 2013, 2010, "blue", "orange")
-    generate_diff_diff_viz(
-        "WA", ["OH", "MI", "ME", "HI"], 2002, 2012, 2012, 2015, 2012, "blue", "orange"
-    )
+    generate_pre_post_viz("WA", 2002, 2012, 2012, 2015, 2012, "blue", "orange")
+
     generate_diff_diff_viz(
         "FL",
         ["KY", "WV", "TN", "NV", "OR"],
