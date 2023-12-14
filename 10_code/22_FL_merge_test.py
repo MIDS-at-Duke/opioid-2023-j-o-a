@@ -14,7 +14,7 @@ florida_data = florida_data[florida_data["YEAR"].between(2002, 2018)]
 unique_counties_per_year = florida_data.groupby("YEAR")["County"].nunique()
 
 # Loading raw mortality data from 00_data
-mortality_data = pd.read_csv("../00_data/mortality_final.csv")
+mortality_data = pd.read_csv("../20_intermediate_files/mortality_final.csv")
 
 # Loading population data from 00_data
 population_data = pd.read_csv("../00_data/PopFips.csv")

@@ -93,8 +93,12 @@ for state in states:
         missing_states.append(state)
 
 # Write the aggregated DataFrame to a parquet file
-aggregated_data_years.to_parquet("../00_data/aggregated_data_years.parquet")
-aggregated_data_months.to_parquet("../00_data/aggregated_data_months.parquet")
+aggregated_data_years.to_parquet(
+    "../20_intermediate_files/aggregated_data_years.parquet"
+)
+aggregated_data_months.to_parquet(
+    "../20_intermediate_files/aggregated_data_months.parquet"
+)
 
 aggregated_data_years = aggregated_data_years.rename(
     columns={

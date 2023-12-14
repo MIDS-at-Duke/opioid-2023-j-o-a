@@ -65,7 +65,9 @@ if "County" in relevant_mortality_data.columns:
     ].str.split(", ", expand=True)
 
 
-output_file_path = os.path.join(current_dir, "00_data", "mortality_final.csv")
+output_file_path = os.path.join(
+    current_dir, "20_intermediate_files", "mortality_final.csv"
+)
 
 # Save relevant_mortality_data to a CSV file
 relevant_mortality_data.to_csv(output_file_path, index=False)
