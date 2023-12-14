@@ -5,6 +5,10 @@
 
 - [`11_confrim_states.py`](11_confrim_states.py): A python script used for sanity checking for states gathered and also used to see difference in naming of counties of Washington Post vs US Vital Statistics
 
+- [`12_read.py`](12_read.py): A python script that was used for sanity checking for states gathered as we weren't sure why there was a big difference in number of rows from the original dataset
+
+- [`13_popdatagen.py`](13_popdatagen.py): A python script that appends population counts for their respective counties
+
 - [`14_mortality_txt_to_csv.py`](14_mortality_txt_to_csv.py): A python script that converts `00_data/US_VitalStatistics` .txt files into appropriate .csv fileS
 
 - [`15_opioid_groupby.py`](15_opioid_groupby.py): A python script that aggregates data of the three datasets used for this project for our analysis
