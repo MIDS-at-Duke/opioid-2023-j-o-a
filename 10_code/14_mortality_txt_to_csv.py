@@ -1,3 +1,4 @@
+"""converts mortality files to csv files"""
 import os
 import pandas as pd
 
@@ -23,7 +24,7 @@ def txt_to_csv(input_folder, output_csv):
     df.to_csv(output_csv, index=False)
 
 
-current_dir = os.getcwd()
+current_dir = "00_data/US_VitalStatistics"
 
 # Specify the input folder containing .txt files and the output CSV file
 input_folder = os.path.join(current_dir, "20_intermediate_files/US_VitalStatistics")

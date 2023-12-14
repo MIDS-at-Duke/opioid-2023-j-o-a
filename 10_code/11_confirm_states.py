@@ -1,4 +1,4 @@
-"""checks states for sanity check"""
+"""checks states for sanity check and FL counties for discrepancies"""
 import pandas as pd
 
 csv_url = "https://raw.githubusercontent.com/wpinvestigative/arcos-api/master/data/county_fips.csv?raw=true"

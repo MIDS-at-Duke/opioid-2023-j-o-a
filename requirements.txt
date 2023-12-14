@@ -7,3 +7,5 @@ matplotlib
 seaborn
 openpyxl
 scikit-learn
+pyarrow
+statsmodels

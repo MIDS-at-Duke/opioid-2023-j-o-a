@@ -1,3 +1,4 @@
+"""more data filtering for states for the assignments"""
 import pandas as pd
 import os
 
@@ -183,7 +184,7 @@ opioid_pop = agg_years_clean.merge(
 assert (opioid_pop["_merge"] == "both").all()
 
 # write the merged file to parquet
-opioid_pop.to_parquet("../00_data/opioid_pop_clean.parquet")
+opioid_pop.to_parquet("../20_intermediate_files/opioid_pop_clean.parquet")
 
 
 #####################################################################
@@ -246,4 +247,4 @@ opioid_pop_months = agg_months_clean.merge(
 assert (opioid_pop_months["_merge"] == "both").all()
 
 # write the merged file to parquet
-opioid_pop_months.to_parquet("../00_data/opioid_pop_months_clean.parquet")
+opioid_pop_months.to_parquet("../20_intermediate_files/opioid_pop_months_clean.parquet")

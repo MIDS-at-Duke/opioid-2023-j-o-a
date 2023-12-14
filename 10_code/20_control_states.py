@@ -1,11 +1,10 @@
-"""find the possible control states for each treatment state"""
+"""find the possible control states for each treatment state and start consumption sample viz"""
 import pyarrow.parquet as pq
 import pandas as pd
 import os
 import matplotlib.pyplot as plt
 import numpy as np
 import statsmodels.api as sm
-import operator
 
 
 TREATMENT_STATES = ["TX", "FL", "WA"]
@@ -1102,8 +1101,6 @@ def find_control_states_cleaned_tx(PRE_DEFINED_STATES):
     results = model.fit()
     model_predict = results.get_prediction(X)
     pass
-
-
 
 
 if __name__ == "__main__":
